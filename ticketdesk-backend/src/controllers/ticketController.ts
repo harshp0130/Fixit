@@ -92,7 +92,7 @@ export const updateTicketStatus = async (req: Request, res: Response) => {
     }
 
     ticket.status = newStatus;
-    ticket.updates.push({ message, status: newStatus, updatedBy: user._id, timestamp: new Date() });
+    ticket.updates.push({ message, status: newStatus, updatedBy: user._id as any, timestamp: new Date() });
     await ticket.save();
     res.json({ message: 'Ticket status updated' });
   } catch (error) {
@@ -119,7 +119,7 @@ export const updateTicketPriority = async (req: Request, res: Response) => {
     }
 
     ticket.priority = newPriority;
-    ticket.updates.push({ message, priority: newPriority, updatedBy: user._id, timestamp: new Date() });
+    ticket.updates.push({ message, priority: newPriority, updatedBy: user._id as any, timestamp: new Date() });
     await ticket.save();
     res.json({ message: 'Ticket priority updated' });
   } catch (error) {
