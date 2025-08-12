@@ -24,15 +24,32 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      const success = await login(formData.email, formData.password, formData.role);
-      if (success) {
-        toast.success('Login successful!');
-        navigate('/dashboard');
-      } else {
-        toast.error('Invalid credentials. Use password: "password"');
-      }
-    } catch (error) {
-      toast.error('Login failed. Please try again.');
+      console.log('Attempting login with:', {
+        email: formData.email,
+        role: formData.role
+      });
+
+                const success = await login(formData.email, formData.password, formData.role);
+                if (success) {
+                    toast.success('Login successful!');
+                    
+                    // Role-based routing
+                    switch (formData.role) {
+                        case 'super_admin':
+                            navigate('/admin/dashboard');
+                            break;
+                        case 'sub_admin':
+                            navigate('/admin/dashboard');
+                            break;
+                        default:
+                            navigate('/dashboard');
+                    }
+                } else {
+                    toast.error('Login failed. Please check your credentials and role.');
+                }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -125,18 +142,7 @@ export const Login: React.FC = () => {
               </Button>
             </form>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-              <h4 className="text-sm font-semibold text-blue-800 mb-3">Demo Credentials:</h4>
-              <div className="text-xs text-blue-700 space-y-1">
-                <p><strong>Student:</strong> john@student.edu</p>
-                <p><strong>Faculty:</strong> jane@faculty.edu</p>
-                <p><strong>CS Sub Admin:</strong> cs.subadmin@system.com</p>
-                <p><strong>Mechanical Sub Admin:</strong> mech.subadmin@system.com</p>
-                <p><strong>Master Admin:</strong> master.admin@system.com</p>
-                <p><strong>Password:</strong> password</p>
-              </div>
-            </div>
+           
 
             {/* Sign Up Link */}
             <div className="mt-6 text-center">

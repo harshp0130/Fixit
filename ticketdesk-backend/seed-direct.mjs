@@ -11,15 +11,16 @@ const __dirname = dirname(__filename);
 
 // Get MongoDB URI
 const getMongoUri = async () => {
+  if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
   if (process.env.MONGO_URI) return process.env.MONGO_URI;
 
   try {
     const packageJsonPath = resolve(__dirname, "package.json");
     const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
-    return packageJson.env?.MONGO_URI || "mongodb://localhost:27017/fixit";
+    return packageJson.env?.MONGO_URI || "mongodb://localhost:27017/ticketdesk";
   } catch (error) {
     console.error("Error reading package.json:", error);
-    return "mongodb://localhost:27017/fixit"; // Fallback
+    return "mongodb://localhost:27017/ticketdesk"; // Fallback
   }
 };
 
@@ -46,14 +47,15 @@ const seedAdmin = async () => {
     // Create User model
     const User = mongoose.model("User", UserSchema);
 
-    const existingUser = await User.findOne({
-      email: "master.admin@system.com",
+    // Seed Super Admin
+    const superAdminExists = await User.findOne({
+      email: "superadmin@system.com",
     });
-    if (!existingUser) {
-      const hashedPassword = await bcrypt.hash("password", 10);
+    if (!superAdminExists) {
+      const hashedPassword = await bcrypt.hash("harsh123", 10);
       const superAdmin = new User({
         name: "Master Admin",
-        email: "master.admin@system.com",
+        email: "superadmin@system.com",
         password: hashedPassword,
         role: "super_admin",
       });
@@ -61,6 +63,44 @@ const seedAdmin = async () => {
       console.log("Super Admin account seeded successfully.");
     } else {
       console.log("Super Admin account already exists.");
+    }
+
+    // Seed Computer Science Sub Admin
+    const csAdminExists = await User.findOne({
+      email: "cs.subadmin@system.com",
+    });
+    if (!csAdminExists) {
+      const hashedPassword = await bcrypt.hash("harsh123", 10);
+      const csAdmin = new User({
+        name: "CS Department Admin",
+        email: "cs.subadmin@system.com",
+        password: hashedPassword,
+        role: "sub_admin",
+        department: "Computer Science",
+      });
+      await csAdmin.save();
+      console.log("CS Sub Admin account seeded successfully.");
+    } else {
+      console.log("CS Sub Admin account already exists.");
+    }
+
+    // Seed Mechanical Sub Admin
+    const mechAdminExists = await User.findOne({
+      email: "mech.subadmin@system.com",
+    });
+    if (!mechAdminExists) {
+      const hashedPassword = await bcrypt.hash("harsh123", 10);
+      const mechAdmin = new User({
+        name: "Mechanical Department Admin",
+        email: "mech.subadmin@system.com",
+        password: hashedPassword,
+        role: "sub_admin",
+        department: "Mechanical",
+      });
+      await mechAdmin.save();
+      console.log("Mechanical Sub Admin account seeded successfully.");
+    } else {
+      console.log("Mechanical Sub Admin account already exists.");
     }
     await mongoose.connection.close();
   } catch (error) {

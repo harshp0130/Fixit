@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed": "node seed.mjs",
+    "seed": "ts-node src/seed/seed.ts",
     "dev": "nodemon src/app.ts"
   },
   "keywords": [],

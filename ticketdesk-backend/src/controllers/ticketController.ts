@@ -37,13 +37,20 @@ export const getTickets = async (req: Request, res: Response) => {
   let query: any = {}; // Use `any` for flexible query object
   
   if (user.role === 'sub_admin' && user.department) {
+    // Sub-admins see tickets for their department only
     query = { department: user.department };
-  } else if (user.role !== 'super_admin') {
+  } else if (user.role === 'super_admin') {
+    // Super admins see all tickets - no query filter needed
+    query = {};
+  } else {
+    // Students and faculty see only their own tickets
     query = { submittedBy: user._id };
   }
   
   try {
-    const tickets = await Ticket.find(query).populate('submittedBy', 'name email').sort({ submissionDate: -1 });
+    const tickets = await Ticket.find(query)
+      .populate('submittedBy', 'name email role department')
+      .sort({ submissionDate: -1 });
     res.json(tickets);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });

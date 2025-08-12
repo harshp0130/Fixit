@@ -53,7 +53,7 @@ export const Register: React.FC = () => {
   const roleOptions = [
     { value: 'student', label: 'Student' },
     { value: 'faculty', label: 'Faculty' },
-    { value: 'sub_admin', label: 'Sub Admin (Department)' }
+    
   ];
 
   return (
