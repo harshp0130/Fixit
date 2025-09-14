@@ -165,13 +165,13 @@ export const mockTickets: Ticket[] = [
 ];
 
 export const institutes = [
-  'Parul Institute Of Technology',
-  'Parul Institute Of Engineering And Technolgy',
-  'Parul Institute Of Pharmacy',
-  'Parul Institute Of Applied Science',
-  'Parul Institute Of Management',
-  'Parul Institute Of Design',
-  'Parul Institute Of Arts',
+  'ITM Institute Of Technology',
+  'ITM Institute Of Engineering And Technolgy',
+  'ITM Institute Of Pharmacy',
+  'ITM Institute Of Applied Science',
+  'ITM Institute Of Management',
+  'ITM Institute Of Design',
+  'ITM Institute Of Arts',
   'Administrative Building'
 ];
 

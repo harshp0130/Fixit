@@ -37,12 +37,10 @@ export const Register: React.FC = () => {
       return;
     }
 
-    if (!validateEmail(formData.email, formData.role)) {
+      if (!validateEmail(formData.email, formData.role)) {
       toast.error('Please use your university email address (@paruluniversity.ac.in)');
       return;
-    }
-
-    setLoading(true);
+    }    setLoading(true);
 
     try {
       const success = await register({

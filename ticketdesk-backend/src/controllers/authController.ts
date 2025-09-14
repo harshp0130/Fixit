@@ -29,6 +29,13 @@ const generateToken = (user: IUser & { _id: mongoose.Types.ObjectId }): TokenDat
   };
 };
 
+const validateEmail = (email: string, role: string): boolean => {
+  if (role === 'student' || role === 'faculty') {
+    return email.endsWith('@paruluniversity.ac.in');
+  }
+  return true; // For admin roles, any valid email is acceptable
+};
+
 export const registerUser = async (req: Request, res: Response) => {
   const { name, email, password, role, department } = req.body;
   
@@ -42,20 +49,10 @@ export const registerUser = async (req: Request, res: Response) => {
     });
   }
 
-  // Validate email format and domain
-  const emailRegex = /^[^\s@]+@paruluniversity\.ac\.in$/;
-  if (!emailRegex.test(email) && (role === 'student' || role === 'faculty')) {
-    console.log('Invalid email domain');
+  if (!validateEmail(email, role)) {
     return res.status(400).json({ 
-      message: 'Please use your university email address (@paruluniversity.ac.in)'
+      message: 'Students and faculty must use an @paruluniversity.ac.in email address' 
     });
-  } else if (role === 'super_admin' || role === 'sub_admin') {
-    // For admin roles, just validate basic email format
-    const basicEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!basicEmailRegex.test(email)) {
-      console.log('Invalid email format');
-      return res.status(400).json({ message: 'Please provide a valid email address' });
-    }
   }
 
   try {
