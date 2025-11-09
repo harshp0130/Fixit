@@ -1,46 +1,44 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Ticket, ArrowLeft, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFormValidation } from '../../hooks/useFormValidation';
+import { registerSchema, RegisterFormData } from '../../lib/validations/auth';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import toast from 'react-hot-toast';
 
 export const Register: React.FC = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RegisterFormData>({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
     role: 'student'
   });
+  
+  const { errors, validateForm } = useFormValidation(registerSchema);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const { register } = useAuth();
   const navigate = useNavigate();
 
-  const validateEmail = (email: string, role: string): boolean => {
-    if (role === 'student' || role === 'faculty') {
-      const universityEmailRegex = /^[^\s@]+@paruluniversity\.ac\.in$/;
-      return universityEmailRegex.test(email);
-    }
-    return true;
-  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
+    if (!validateForm(formData)) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) {
+        toast.error(firstError);
+      }
       return;
     }
-
-      if (!validateEmail(formData.email, formData.role)) {
-      toast.error('Please use your university email address (@paruluniversity.ac.in)');
-      return;
-    }    setLoading(true);
+    
+    setLoading(true);
 
     try {
       const success = await register({
@@ -128,7 +126,7 @@ export const Register: React.FC = () => {
                 label="Role"
                 options={roleOptions}
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as RegisterFormData['role'] })}
                 required
               />
               

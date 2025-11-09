@@ -20,12 +20,15 @@ const generateToken = (user: IUser & { _id: mongoose.Types.ObjectId }): TokenDat
   const token = jwt.sign(
     payload,
     process.env.JWT_SECRET!,
-    { expiresIn: '1h' }
+    { 
+      expiresIn: '24h',  // Increase token lifetime
+      algorithm: 'HS256'
+    }
   );
 
   return {
     token,
-    expiresIn: 3600 // 1 hour in seconds
+    expiresIn: 86400 // 24 hours in seconds
   };
 };
 
@@ -42,16 +45,24 @@ export const registerUser = async (req: Request, res: Response) => {
   console.log('Registration attempt:', { name, email, role, department }); // Debug log
 
   // Validate required fields
-  if (!name || !email || !password || !role) {
+  if (!email || !password || !role) {
     console.log('Missing required fields');
     return res.status(400).json({ 
-      message: 'Please provide all required fields: name, email, password, and role' 
+      success: false,
+      error: {
+        message: 'Please provide all required fields: email, password, and role',
+        code: 'MISSING_FIELDS'
+      }
     });
   }
 
   if (!validateEmail(email, role)) {
-    return res.status(400).json({ 
-      message: 'Students and faculty must use an @paruluniversity.ac.in email address' 
+    return res.status(400).json({
+      success: false,
+      error: {
+        message: 'Students and faculty must use an @paruluniversity.ac.in email address',
+        code: 'INVALID_EMAIL_DOMAIN'
+      }
     });
   }
 
@@ -59,7 +70,13 @@ export const registerUser = async (req: Request, res: Response) => {
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
-      return res.status(400).json({ message: 'User already exists with this email' });
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'User already exists with this email',
+          code: 'USER_ALREADY_EXISTS'
+        }
+      });
     }
 
     // Create new user
@@ -74,17 +91,17 @@ export const registerUser = async (req: Request, res: Response) => {
     // Save user to database
     const savedUser = await user.save() as (IUser & { _id: mongoose.Types.ObjectId });
 
-    // Generate token
-    const { token, expiresIn } = generateToken(savedUser);
-
-    // Return success message only, no token (user must login separately)
+    // Return success in a consistent ApiResponse shape
     res.status(201).json({
-      message: 'User registered successfully. Please login to continue.',
-      email: savedUser.email // Send back email for convenience
+      success: true,
+      data: {
+        message: 'User registered successfully. Please login to continue.',
+        email: savedUser.email
+      }
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error during registration' });
+    res.status(500).json({ success: false, error: { message: 'Server error during registration' } });
   }
 };
 
@@ -92,12 +109,18 @@ export const verifyToken = async (req: Request, res: Response) => {
   // The auth middleware already verified the token and attached the user
   const user = req.user!;
   
+  // Respond with ApiResponse shape
   res.json({
-    id: user._id.toString(),
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    department: user.department
+    success: true,
+    data: {
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department
+      }
+    }
   });
 };
 
@@ -107,51 +130,85 @@ export const loginUser = async (req: Request, res: Response) => {
 
   // Validate required fields
   if (!email || !password) {
-    return res.status(400).json({ message: 'Please provide both email and password' });
+    console.log('Missing email or password');
+    return res.status(400).json({ 
+      success: false,
+      error: { message: 'Please provide both email and password' }
+    });
   }
 
   try {
+    console.log('Attempting to find user:', { email, role });
     // Find user by email
     const user = await User.findOne({ email }) as (IUser & { _id: mongoose.Types.ObjectId });
-    console.log('Found user:', user ? 'Yes' : 'No'); // Debug log
+    console.log('Database query result:', { 
+      found: !!user,
+      userRole: user?.role,
+      requestedRole: role
+    });
 
     if (!user) {
-      console.log('No user found with email:', { email }); // Debug log
-      return res.status(400).json({ message: 'Invalid credentials' });
+      console.log('No user found with email:', { email });
+      return res.status(400).json({ 
+        success: false,
+        error: { 
+          message: 'Invalid credentials',
+          code: 'INVALID_CREDENTIALS'
+        }
+      });
     }
 
     // Check if role matches if one was provided
     if (role && user.role !== role) {
       console.log('Role mismatch:', { expected: role, actual: user.role }); // Debug log
-      return res.status(400).json({ message: 'Invalid role for this user' });
+      return res.status(400).json({ success: false, error: { message: 'Invalid role for this user', code: 'INVALID_ROLE' } });
     }
 
     // Verify password
-    const isMatch = await bcrypt.compare(password, user.password!);
-    console.log('Password match:', isMatch); // Debug log
+    try {
+      const isMatch = await bcrypt.compare(password, user.password!);
+      console.log('Password comparison result:', isMatch);
 
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid password' });
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Invalid credentials',
+            code: 'INVALID_CREDENTIALS'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Password comparison error:', error);
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Error verifying credentials',
+          code: 'PASSWORD_VERIFICATION_ERROR'
+        }
+      });
     }
 
     // Generate token
     const { token, expiresIn } = generateToken(user);
 
-    // Return success with user details and token
+    // Return success with user details and token in ApiResponse shape
     res.json({
-      message: 'Login successful',
-      token,
-      expiresIn,
-      user: {
-        id: user._id.toString(),
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        department: user.department
+      success: true,
+      data: {
+        token,
+        expiresIn,
+        user: {
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          department: user.department
+        }
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login' });
+    res.status(500).json({ success: false, error: { message: 'Server error during login' } });
   }
 };

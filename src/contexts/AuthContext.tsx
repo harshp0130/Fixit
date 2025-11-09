@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, AuthContextType } from '../types';
+import { apiClient } from '@/lib/api';
+import { LoginRequest, RegisterRequest } from '../types/api';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -14,6 +16,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthInitializing, setIsAuthInitializing] = useState(true);
 
   // Check token validity and refresh user data
   const refreshUserData = async () => {
@@ -23,156 +26,208 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    try {
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
+    apiClient.setToken(token);
+
+    // Retry-once for transient network errors. Only logout for explicit auth failures.
+    let attempts = 0;
+    const maxAttempts = 2;
+    const backoff = (n: number) => 1000 * n;
+
+    while (attempts < maxAttempts) {
+      try {
+        const response = await apiClient.request<{ user: User }>('GET', '/auth/verify');
+
+        if (response.success && response.data) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+          setUser(response.data.user);
+          setIsAuthenticated(true);
+          return;
         }
-      });
 
-      if (!response.ok) {
-        throw new Error('Failed to refresh user data');
+        // If server returned an auth-specific error, force logout
+        const code = response.error?.code;
+        if (code === 'TOKEN_EXPIRED' || code === 'INVALID_TOKEN' || response.error?.message?.toLowerCase()?.includes('token')) {
+          logout();
+          return;
+        }
+
+        // For any other error shape, throw to be handled below (may retry)
+        throw new Error(response.error?.message || 'Failed to refresh user data');
+      } catch (error: any) {
+        attempts += 1;
+
+        // If explicit 401 from axios response or auth codes inside response -> logout
+        const status = error?.response?.status;
+        const errCode = error?.response?.data?.error?.code || error?.code;
+        if (status === 401 || errCode === 'TOKEN_EXPIRED' || errCode === 'INVALID_TOKEN') {
+          logout();
+          return;
+        }
+
+        // Network error / no response: retry once with backoff
+        if ((!error?.response || String(error.message).toLowerCase().includes('network')) && attempts < maxAttempts) {
+          await new Promise((r) => setTimeout(r, backoff(attempts)));
+          continue;
+        }
+
+        // Otherwise, don't logout immediately; log and exit (we'll keep the local state)
+        console.warn('refreshUserData failed, keeping existing session without forcing logout', { attempts, error });
+        return;
       }
-
-      const data = await response.json();
-      localStorage.setItem('user', JSON.stringify(data));
-      setUser(data);
-      setIsAuthenticated(true);
-    } catch (error) {
-      console.error('Error refreshing user data:', error);
-      logout();
     }
   };
+
+  // Test API connection
+  useEffect(() => {
+    const testApiConnection = async () => {
+      try {
+        console.log('Testing API connection...');
+        const response = await fetch('http://localhost:5000/api/health');
+        if (response.ok) {
+          console.log('API Connection test successful');
+        } else {
+          console.warn('API returned non-200 status:', response.status);
+        }
+      } catch (error) {
+        console.error('API Connection test failed:', error);
+      }
+    };
+    testApiConnection();
+  }, []);
 
   // Initial auth check and setup
   useEffect(() => {
     const initAuth = async () => {
+      setIsAuthInitializing(true);
       const token = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
 
       if (token && storedUser) {
         try {
           // First set the stored user to prevent flicker
-          setUser(JSON.parse(storedUser));
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
           setIsAuthenticated(true);
+          apiClient.setToken(token);
 
-          // Then verify with the server
-          const response = await fetch('/api/auth/verify', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
+          // Then verify with the server. Only logout for explicit token errors; for other errors keep local state.
+          const response = await apiClient.request<{ user: User }>('GET', '/auth/verify');
+          if (response.success && response.data) {
+            if (
+              response.data.user.email !== parsedUser.email || 
+              response.data.user.role !== parsedUser.role
+            ) {
+              // User data mismatch - force logout
+              console.warn('User data mismatch detected');
+              logout();
+              return;
             }
-          });
 
-          if (!response.ok) {
-            throw new Error('Token verification failed');
+            setUser(response.data.user);
+            setIsAuthenticated(true);
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+          } else if (response.error?.code === 'TOKEN_EXPIRED' || response.error?.code === 'INVALID_TOKEN') {
+            console.log('Token invalid or expired, logging out');
+            logout();
+            return;
+          } else {
+            // Non-auth related failure during init: keep local user to avoid forcing logout on transient failures
+            console.warn('Token verification failed during init but is not an auth error; keeping local session', response.error);
           }
-
-          const userData = await response.json();
-          setUser(userData);
-          setIsAuthenticated(true);
-          localStorage.setItem('user', JSON.stringify(userData));
-        } catch (error) {
-          console.error('Auth verification error:', error);
-          logout();
+        } catch (error: any) {
+          console.error('Auth verification error during init:', error);
+          if (error?.response?.status === 401 || error?.response?.data?.error?.code === 'TOKEN_EXPIRED') {
+            logout();
+          }
         }
       }
+      setIsAuthInitializing(false);
     };
-
+    
     initAuth();
   }, []);
 
   // Refresh token every 30 minutes to keep session alive
   useEffect(() => {
     if (isAuthenticated) {
-      const interval = setInterval(async () => {
-        try {
-          const token = localStorage.getItem('token');
-          if (!token) {
-            throw new Error('No token found');
-          }
-
-          const response = await fetch('/api/auth/verify', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json'
-            }
-          });
-
-          if (!response.ok) {
-            throw new Error('Token verification failed');
-          }
-
-          const userData = await response.json();
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-        } catch (error) {
-          console.error('Token refresh error:', error);
-          logout();
-        }
-      }, 30 * 60 * 1000); // 30 minutes
-
+      const interval = setInterval(refreshUserData, 30 * 60 * 1000); // 30 minutes
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 
-  const login = async (email: string, password: string, role: string): Promise<boolean> => {
+  const login = async (email: string, password: string, role: User['role']): Promise<boolean> => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ email, password, role }),
+      // Clear any existing auth data before attempting login
+      logout();
+
+      console.log('Attempting login with:', { email, role });
+      const loginData: LoginRequest = { email, password, role };
+      const response = await apiClient.login(loginData);
+
+      console.log('Login response:', {
+        success: response.success,
+        hasData: !!response.data,
+        error: response.error
       });
 
-      if (!response.ok) {
-        throw new Error('Login failed');
+      if (response.success && response.data) {
+        // Validate the response data
+        const { token, user } = response.data;
+        
+        if (!token || !user || !user.email || user.role !== role) {
+          console.error('Invalid login response data:', response.data);
+          throw new Error('Invalid login response from server');
+        }
+
+        // Store auth data
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        apiClient.setToken(token);
+        
+        // Update state
+        setUser(user);
+        setIsAuthenticated(true);
+  try { window.dispatchEvent(new CustomEvent('app:auth-changed')); } catch (e) { /* ignore */ }
+        
+        console.log('Login successful for role:', role);
+        return true;
       }
 
-      const data = await response.json();
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      setUser(data.user);
-      setIsAuthenticated(true);
-      return true;
-    } catch (error) {
-      console.error('Login error:', error);
-      return false;
+      // Enhanced error handling with specific messages
+      if (response.error?.code === 'INVALID_CREDENTIALS') {
+        throw new Error('Invalid email or password');
+      } else if (response.error?.code === 'INVALID_ROLE') {
+        throw new Error('Invalid role selected for this user');
+      }
+
+      throw new Error(response.error?.message || 'Login failed. Please try again.');
+    } catch (error: any) {
+      console.error('Login error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
+      throw error;
     }
   };
 
-  const register = async (userData: Omit<User, 'id'> & { password: string }): Promise<boolean> => {
+  const register = async (userData: RegisterRequest): Promise<boolean> => {
     try {
-      console.log('Attempting registration with:', userData);
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
+      const response = await apiClient.register(userData);
 
-      console.log('Registration response status:', response.status);
-      const data = await response.json();
-      console.log('Registration response data:', data);
-
-      if (!response.ok) {
-        console.error('Registration failed:', data.message);
-        throw new Error(data.message || 'Registration failed');
+      if (response.success) {
+        // Successful registration but don't automatically log in
+        // Clear any existing auth data to ensure a clean login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        apiClient.clearToken();
+        setUser(null);
+        setIsAuthenticated(false);
+        return true;
       }
 
-      // Successful registration but don't automatically log in
-      // Clear any existing auth data to ensure a clean login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setUser(null);
-      setIsAuthenticated(false);
-
-      return true;
+      throw new Error(response.error?.message || 'Registration failed');
     } catch (error) {
       console.error('Registration error:', error);
       return false;
@@ -183,18 +238,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Clear all auth-related storage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('selectedRole');
     sessionStorage.clear();
     
     // Reset state
+    apiClient.clearToken();
     setUser(null);
     setIsAuthenticated(false);
-
-    // Force reload to clear any cached state
-    window.location.href = '/login';
+    try { window.dispatchEvent(new CustomEvent('app:auth-changed')); } catch (e) { /* ignore */ }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated, isAuthInitializing }}>
       {children}
     </AuthContext.Provider>
   );

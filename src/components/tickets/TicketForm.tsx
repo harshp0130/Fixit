@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Upload, X, Image } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { Plus, Upload, X } from 'lucide-react';
+// removed unused useAuth
 import { useTickets } from '../../contexts/TicketContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -24,7 +24,7 @@ export const TicketForm: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   
-  const { user } = useAuth();
+  
   const { createTicket } = useTickets();
   const navigate = useNavigate();
 
@@ -85,16 +85,25 @@ export const TicketForm: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await createTicket({
-        ...formData,
+      const payload: any = {
+        title: formData.title,
+        institute: formData.institute,
+        location: formData.location,
+        roomNumber: formData.roomNumber,
+        department: formData.department,
+        description: formData.description,
         priority: formData.priority as 'low' | 'medium' | 'high',
-        status: 'pending',
-        submittedBy: user!.id
-      });
+        status: 'pending'
+      };
+      if (formData.imageFile) payload.imageFile = formData.imageFile;
+
+      await createTicket(payload);
       toast.success('Ticket submitted successfully!');
       navigate('/tickets');
     } catch (error) {
-      toast.error('Failed to submit ticket. Please try again.');
+      console.error('Ticket submit error:', error);
+      const msg = (error as any)?.message || 'Failed to submit ticket. Please try again.';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TicketProvider } from './contexts/TicketContext';
@@ -38,27 +38,52 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
+// Listens for global unauthorized events and redirects to login within the Router
+const UnauthorizedListener: React.FC = () => {
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const handler = () => {
+      // Redirect to login when an unauthorized event occurs
+      navigate('/login', { replace: true });
+    };
+
+    window.addEventListener('app:unauthorized', handler as EventListener);
+    return () => window.removeEventListener('app:unauthorized', handler as EventListener);
+  }, [navigate]);
+
+  return null;
+};
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  
+  const { isAuthenticated, isAuthInitializing } = useAuth();
+
+  if (isAuthInitializing) {
+    return <div className="flex items-center justify-center h-full">Loading...</div>;
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <AppLayout>{children}</AppLayout>;
 };
 
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
-  
+  const { user, isAuthenticated, isAuthInitializing } = useAuth();
+
+  if (isAuthInitializing) {
+    return <div className="flex items-center justify-center h-full">Loading...</div>;
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   if (user?.role !== 'sub_admin' && user?.role !== 'super_admin') {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <AppLayout>{children}</AppLayout>;
 };
 
@@ -70,7 +95,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/" element={<LandingPage />} />
       <Route 
         path="/login" 
-        element={<Login />} 
+        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} 
       />
       <Route 
         path="/register" 
@@ -152,6 +177,7 @@ function App() {
         <TicketProvider>
           <Router>
             <div className="App">
+              <UnauthorizedListener />
               <AppRoutes />
               <Toaster 
                 position="top-right"

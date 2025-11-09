@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Ticket, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFormValidation } from '../../hooks/useFormValidation';
+import { loginSchema, LoginFormData } from '../../lib/validations/auth';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import toast from 'react-hot-toast';
 
 export const Login: React.FC = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
     role: 'student'
@@ -19,34 +21,45 @@ export const Login: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  const { errors, validateForm } = useFormValidation(loginSchema);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Remove any existing role from localStorage to prevent validation issues
+    localStorage.removeItem('selectedRole');
+    
+    // First validate without checking email domain
+    if (!validateForm(formData)) {
+      const firstError = Object.values(errors)[0];
+      if (firstError) {
+        toast.error(firstError);
+      }
+      return;
+    }
+
     setLoading(true);
 
     try {
-      console.log('Attempting login with:', {
-        email: formData.email,
-        role: formData.role
-      });
+      // Set role only after validation passes
+      localStorage.setItem('selectedRole', formData.role);
 
-                const success = await login(formData.email, formData.password, formData.role);
-                if (success) {
-                    toast.success('Login successful!');
-                    
-                    // Role-based routing
-                    switch (formData.role) {
-                        case 'super_admin':
-                            navigate('/admin/dashboard');
-                            break;
-                        case 'sub_admin':
-                            navigate('/admin/dashboard');
-                            break;
-                        default:
-                            navigate('/dashboard');
-                    }
-                } else {
-                    toast.error('Login failed. Please check your credentials and role.');
-                }
+      const success = await login(formData.email, formData.password, formData.role);
+      if (success) {
+        toast.success('Login successful!');
+        
+        // Role-based routing with replace to prevent back button issues
+        switch (formData.role) {
+          case 'super_admin':
+          case 'sub_admin':
+            navigate('/admin/dashboard', { replace: true });
+            break;
+          default:
+            navigate('/dashboard', { replace: true });
+        }
+      } else {
+        toast.error('Login failed. Please check your credentials and role.');
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Login failed. Please try again.');
@@ -97,7 +110,7 @@ export const Login: React.FC = () => {
                 label="Role"
                 options={roleOptions}
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as LoginFormData['role'] })}
                 required
               />
               

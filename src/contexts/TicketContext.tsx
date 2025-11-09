@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { Ticket, TicketUpdate } from '../types';
-import { mockTickets } from '../data/mockData';
+import { Ticket } from '../types';
 
 interface TicketContextType {
   tickets: Ticket[];
@@ -32,15 +31,28 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('/api/tickets', {
+      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+
+      const response = await fetch(`${apiBase}/tickets`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
-      if (!response.ok) throw new Error('Failed to fetch tickets');
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to fetch tickets');
+      }
+
       const data = await response.json();
-      setTickets(data);
+      // Expecting ApiResponse shape { success: boolean, data: { tickets: Ticket[] } }
+      if (data && typeof data.success === 'boolean' && data.success && data.data && Array.isArray(data.data.tickets)) {
+        setTickets(data.data.tickets);
+      } else {
+        console.warn('Unexpected tickets response shape:', data);
+        setTickets([]);
+      }
     } catch (error) {
       console.error('Error fetching tickets:', error);
     }
@@ -50,30 +62,33 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   React.useEffect(() => {
     fetchTickets();
   }, []);
-
   // Polling for updates every 30 seconds
   React.useEffect(() => {
     const interval = setInterval(fetchTickets, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Re-fetch tickets when auth state changes
-  // Re-fetch tickets when component mounts and periodically
+  // Listen for auth changes to refresh tickets (login/logout)
   React.useEffect(() => {
-    fetchTickets();
-    const interval = setInterval(fetchTickets, 30000);
-    return () => clearInterval(interval);
+    const handler = () => fetchTickets();
+    window.addEventListener('app:auth-changed', handler as EventListener);
+    return () => window.removeEventListener('app:auth-changed', handler as EventListener);
   }, []);
 
   const createTicket = async (ticketData: Omit<Ticket, 'id' | 'submissionDate' | 'updates' | 'submittedBy'> & { imageFile?: File }) => {
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Not authenticated. Please login and try again.');
+      }
+
       const formData = new FormData();
-      
+
       // Add all ticket data except imageFile
       Object.entries(ticketData).forEach(([key, value]) => {
         if (key !== 'imageFile' && value !== undefined) {
-          formData.append(key, value as string);
+          // Ensure primitive values are stringified
+          formData.append(key, typeof value === 'string' ? value : JSON.stringify(value));
         }
       });
 
@@ -82,7 +97,10 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         formData.append('imageFile', ticketData.imageFile);
       }
 
-      const response = await fetch('/api/tickets', {
+      // Use explicit API base (Vite env or default) to avoid depending on dev proxy config
+      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+
+      const response = await fetch(`${apiBase}/tickets`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -91,8 +109,9 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to create ticket');
+        const error = await response.json().catch(() => ({}));
+        const message = error?.error?.message || error?.message || 'Failed to create ticket';
+        throw new Error(message);
       }
 
       // Refresh tickets list after successful creation
@@ -106,7 +125,8 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateTicketStatus = async (ticketId: string, status: 'pending' | 'in-progress' | 'resolved', message?: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/tickets/${ticketId}/status`, {
+      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+      const response = await fetch(`${apiBase}/tickets/${ticketId}/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -130,7 +150,8 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const updateTicketPriority = async (ticketId: string, priority: 'low' | 'medium' | 'high', message?: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/tickets/${ticketId}/priority`, {
+      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+      const response = await fetch(`${apiBase}/tickets/${ticketId}/priority`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

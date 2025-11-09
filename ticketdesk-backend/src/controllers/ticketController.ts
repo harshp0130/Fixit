@@ -27,7 +27,8 @@ export const createTicket = async (req: Request, res: Response) => {
       location, 
       roomNumber, 
       department, 
-      priority, 
+      priority,
+      status: 'pending',
       imageUrl,
       submittedBy: {
         id: user._id.toHexString(),
@@ -40,16 +41,23 @@ export const createTicket = async (req: Request, res: Response) => {
         message: `Ticket created by ${user.name}`,
         status: 'pending',
         updatedBy: {
-          id: user._id,
+          id: user._id.toHexString(),
           name: user.name,
           role: user.role
         }
       }]
     });
     await newTicket.save();
-    res.status(201).json({ message: 'Ticket created successfully', ticket: newTicket });
+    res.status(201).json({
+      success: true,
+      data: {
+        message: 'Ticket created successfully',
+        ticket: newTicket
+      }
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Create ticket error:', error);
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -66,15 +74,17 @@ export const getTickets = async (req: Request, res: Response) => {
     query = {};
   } else {
     // Students and faculty see only their own tickets
-    query = { 'submittedBy.id': user._id };
+    // stored submittedBy.id is a string (toHexString), so compare with string form
+    query = { 'submittedBy.id': user._id.toHexString() };
   }
   
   try {
     const tickets = await Ticket.find(query)
       .sort({ submissionDate: -1 });
-    res.json(tickets);
+    res.json({ success: true, data: { tickets } });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Get tickets error:', error);
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -87,17 +97,22 @@ export const getTicketById = async (req: Request, res: Response) => {
     const ticket = await Ticket.findById(id).populate('submittedBy', 'name email').populate('updates.updatedBy', 'name');
     
     if (!ticket) {
-      return res.status(404).json({ message: 'Ticket not found' });
+      return res.status(404).json({ success: false, error: { message: 'Ticket not found', code: 'NOT_FOUND' } });
     }
 
-    // Check if the user is the owner or an admin
-    if (ticket.submittedBy.id !== user._id.toHexString() && user.role !== 'sub_admin' && user.role !== 'super_admin') {
-      return res.status(403).json({ message: 'Access denied' });
+    // Check if the user is the owner or an admin with proper department access
+    const isOwner = ticket.submittedBy.id === user._id.toHexString();
+    const isSuperAdmin = user.role === 'super_admin';
+    const isSubAdminSameDept = user.role === 'sub_admin' && ticket.department === user.department;
+
+    if (!isOwner && !isSuperAdmin && !isSubAdminSameDept) {
+      return res.status(403).json({ success: false, error: { message: 'Access denied', code: 'FORBIDDEN' } });
     }
     
-    res.json(ticket);
+    res.json({ success: true, data: { ticket } });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Get ticket by id error:', error);
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -111,12 +126,12 @@ export const updateTicketStatus = async (req: Request, res: Response) => {
     const ticket = await Ticket.findById(id);
 
     if (!ticket) {
-      return res.status(404).json({ message: 'Ticket not found' });
+      return res.status(404).json({ success: false, error: { message: 'Ticket not found', code: 'NOT_FOUND' } });
     }
 
     // Authorization check for sub-admins
     if (user.role === 'sub_admin' && ticket.department !== user.department) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ success: false, error: { message: 'Access denied', code: 'FORBIDDEN' } });
     }
 
     ticket.status = newStatus;
@@ -131,9 +146,10 @@ export const updateTicketStatus = async (req: Request, res: Response) => {
       timestamp: new Date()
     });
     await ticket.save();
-    res.json({ message: 'Ticket status updated' });
+    res.json({ success: true, data: { message: 'Ticket status updated', ticket } });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Update ticket status error:', error);
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -147,12 +163,12 @@ export const updateTicketPriority = async (req: Request, res: Response) => {
     const ticket = await Ticket.findById(id);
 
     if (!ticket) {
-      return res.status(404).json({ message: 'Ticket not found' });
+      return res.status(404).json({ success: false, error: { message: 'Ticket not found', code: 'NOT_FOUND' } });
     }
 
     // Authorization check for sub-admins
     if (user.role === 'sub_admin' && ticket.department !== user.department) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ success: false, error: { message: 'Access denied', code: 'FORBIDDEN' } });
     }
 
     ticket.priority = newPriority;
@@ -167,9 +183,10 @@ export const updateTicketPriority = async (req: Request, res: Response) => {
       timestamp: new Date()
     });
     await ticket.save();
-    res.json({ message: 'Ticket priority updated' });
+    res.json({ success: true, data: { message: 'Ticket priority updated', ticket } });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Update ticket priority error:', error);
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -220,8 +237,9 @@ export const getAnalytics = async (req: Request, res: Response) => {
       }).reverse()
     };
     
-    res.json(analytics);
+    res.json({ success: true, data: { analytics } });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Get analytics error:', error);
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };

@@ -339,27 +339,28 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </Link>
 
-            <Link to="/admin/users">
-              <div className="relative group bg-gradient-to-br from-emerald-50 to-green-50 p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-emerald-500 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-emerald-100">
-                <div>
-                  <span className="rounded-2xl inline-flex p-4 bg-emerald-500 text-white ring-4 ring-emerald-100 shadow-lg">
-                    <Users className="h-8 w-8" />
-                  </span>
-                </div>
-                <div className="mt-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-gray-900">
-                      <span className="absolute inset-0" />
-                      User Management
-                    </h3>
-                    <ArrowUpRight className="h-5 w-5 text-emerald-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+            {user?.role === 'super_admin' && (
+              <Link to="/admin/users" className="block">
+                <div className="relative group bg-gradient-to-br from-emerald-50 to-green-50 p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-emerald-500 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-emerald-100">
+                  <div>
+                    <span className="rounded-2xl inline-flex p-4 bg-emerald-500 text-white ring-4 ring-emerald-100 shadow-lg">
+                      <Users className="h-8 w-8" />
+                    </span>
                   </div>
-                  <p className="mt-3 text-gray-600 leading-relaxed">
-                    Manage user accounts, permissions, and access controls across the platform.
-                  </p>
+                  <div className="mt-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-bold text-gray-900">
+                        User Management
+                      </h3>
+                      <ArrowUpRight className="h-5 w-5 text-emerald-500 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    </div>
+                    <p className="mt-3 text-gray-600 leading-relaxed">
+                      Manage user accounts, permissions, and access controls across the platform.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            )}
 
             <Link to="/admin/analytics">
               <div className="relative group bg-gradient-to-br from-blue-50 to-cyan-50 p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-blue-100">

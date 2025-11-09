@@ -6,36 +6,34 @@ import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
+// Departments for which we'll create sub-admins
+const departmentsList = [
+  'Computer Science',
+  'Mechanical',
+  'Food Tech',
+  'Biotech'
+];
+
 const users = [
   {
     name: 'Super Admin',
     email: 'superadmin@fixit.com',
-    password: 'admin123',
+    password: 'harsh123',
     role: 'super_admin',
     department: 'Administration'
-  },
-  {
-    name: 'Sub Admin',
-    email: 'subadmin@fixit.com',
-    password: 'admin123',
-    role: 'sub_admin',
-    department: 'IT'
-  },
-  {
-    name: 'Faculty Member',
-    email: 'faculty@fixit.com',
-    password: 'faculty123',
-    role: 'faculty',
-    department: 'Computer Science'
-  },
-  {
-    name: 'Student',
-    email: 'student@fixit.com',
-    password: 'student001',
-    role: 'student',
-    department: 'Computer Science'
   }
 ];
+
+// Add one sub_admin per department
+departmentsList.forEach((dept) => {
+  users.push({
+    name: `${dept} Sub Admin`,
+    email: `${dept.toLowerCase().replace(/\s+/g, '')}.subadmin@fixit.com`,
+    password: 'harsh123',
+    role: 'sub_admin',
+    department: dept
+  });
+});
 
 const tickets = [
   {
@@ -82,25 +80,18 @@ async function seedDatabase() {
     console.log('Cleared existing data');
 
     // Create users with properly hashed passwords
-    const salt = await bcrypt.genSalt(10);
     const createdUsers = await Promise.all(
       users.map(async (user) => {
         // Log the user being created
         console.log(`Creating user: ${user.email} with role: ${user.role}`);
         
-        // Hash the password
-        const hashedPassword = await bcrypt.hash(user.password, salt);
-        
-        // Create the user
-        const createdUser = await User.create({
-          ...user,
-          password: hashedPassword
-        });
+        // Let the User model handle password hashing
+        const createdUser = await User.create(user);
         
         console.log(`Successfully created user: ${user.email}`);
         return createdUser;
       })
-    );
+    ) as any[];
     console.log('Created users');
 
     // Create tickets with references to users
@@ -108,16 +99,32 @@ async function seedDatabase() {
     const subAdminUser = createdUsers.find(user => user.role === 'sub_admin');
 
     await Promise.all(
-      tickets.map(async (ticket, index) => {
+      tickets.map(async (ticket) => {
+        const submitter: any = studentUser || createdUsers[0];
+        const submitterObj = submitter ? {
+          id: (submitter._id as any).toHexString ? (submitter._id as any).toHexString() : String(submitter._id),
+          name: submitter.name,
+          email: submitter.email,
+          role: submitter.role,
+          department: submitter.department
+        } : undefined;
+
+        const updater: any = submitter;
+        const updaterObj = updater ? {
+          id: (updater._id as any).toHexString ? (updater._id as any).toHexString() : String(updater._id),
+          name: updater.name,
+          role: updater.role
+        } : undefined;
+
         return Ticket.create({
           ...ticket,
-          submittedBy: studentUser?._id,
+          submittedBy: submitterObj,
           updates: [{
             message: 'Ticket created',
             status: ticket.status,
             priority: ticket.priority,
             timestamp: new Date(),
-            updatedBy: studentUser?._id
+            updatedBy: updaterObj
           }]
         });
       })

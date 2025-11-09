@@ -40,8 +40,9 @@ export interface TicketUpdate {
 
 export interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, role: string) => Promise<boolean>;
+  login: (email: string, password: string, role: User['role']) => Promise<boolean>;
   register: (userData: Omit<User, 'id'> & { password: string }) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
+  isAuthInitializing?: boolean;
 }

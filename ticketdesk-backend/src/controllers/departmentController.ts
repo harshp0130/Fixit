@@ -26,10 +26,10 @@ export const getDepartments = async (req: AuthRequest, res: Response) => {
       })
     );
 
-    res.json({ departments: departmentStats });
+  res.json({ success: true, data: { departments: departmentStats } });
   } catch (error) {
     console.error('Error fetching departments:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -41,7 +41,7 @@ export const createDepartment = async (req: AuthRequest, res: Response) => {
     // Check if department already exists
     const existingDepartment = await User.findOne({ department: name });
     if (existingDepartment) {
-      return res.status(400).json({ message: 'Department already exists' });
+      return res.status(400).json({ success: false, error: { message: 'Department already exists', code: 'DEPARTMENT_EXISTS' } });
     }
 
     // Create sub-admin for the department
@@ -55,17 +55,10 @@ export const createDepartment = async (req: AuthRequest, res: Response) => {
 
     await subAdmin.save();
 
-    res.status(201).json({ 
-      message: 'Department created successfully',
-      department: name,
-      subAdmin: {
-        id: subAdmin._id,
-        email: subAdmin.email
-      }
-    });
+    res.status(201).json({ success: true, data: { message: 'Department created successfully', department: name, subAdmin: { id: subAdmin._id, email: subAdmin.email } } });
   } catch (error) {
     console.error('Error creating department:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -77,7 +70,7 @@ export const updateDepartment = async (req: AuthRequest, res: Response) => {
     // Check if new department name already exists
     const existingDepartment = await User.findOne({ department: newName });
     if (existingDepartment) {
-      return res.status(400).json({ message: 'Department name already exists' });
+      return res.status(400).json({ success: false, error: { message: 'Department name already exists', code: 'DEPARTMENT_EXISTS' } });
     }
 
     // Update all users in the department
@@ -86,13 +79,10 @@ export const updateDepartment = async (req: AuthRequest, res: Response) => {
       { $set: { department: newName } }
     );
 
-    res.json({ 
-      message: 'Department updated successfully',
-      department: newName
-    });
+    res.json({ success: true, data: { message: 'Department updated successfully', department: newName } });
   } catch (error) {
     console.error('Error updating department:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -104,16 +94,14 @@ export const deleteDepartment = async (req: AuthRequest, res: Response) => {
     // Check if department has users
     const usersInDepartment = await User.countDocuments({ department: name });
     if (usersInDepartment > 0) {
-      return res.status(400).json({ 
-        message: 'Cannot delete department with existing users' 
-      });
+      return res.status(400).json({ success: false, error: { message: 'Cannot delete department with existing users', code: 'DEPARTMENT_HAS_USERS' } });
     }
 
     // No need to delete department as it's just a field in user documents
-    res.json({ message: 'Department deleted successfully' });
+    res.json({ success: true, data: { message: 'Department deleted successfully' } });
   } catch (error) {
     console.error('Error deleting department:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -129,9 +117,7 @@ export const mergeDepartments = async (req: AuthRequest, res: Response) => {
     ]);
 
     if (!sourceExists || !targetExists) {
-      return res.status(404).json({ 
-        message: 'One or both departments not found' 
-      });
+      return res.status(404).json({ success: false, error: { message: 'One or both departments not found', code: 'NOT_FOUND' } });
     }
 
     // Update all users from source department
@@ -140,13 +126,10 @@ export const mergeDepartments = async (req: AuthRequest, res: Response) => {
       { $set: { department: targetDepartment } }
     );
 
-    res.json({ 
-      message: 'Departments merged successfully',
-      department: targetDepartment
-    });
+    res.json({ success: true, data: { message: 'Departments merged successfully', department: targetDepartment } });
   } catch (error) {
     console.error('Error merging departments:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };
 
@@ -164,9 +147,9 @@ export const getDepartmentStats = async (req: AuthRequest, res: Response) => {
       resolvedTickets: 0 // Would need to be implemented with Ticket model
     };
 
-    res.json({ department, stats });
+    res.json({ success: true, data: { department, stats } });
   } catch (error) {
     console.error('Error fetching department stats:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ success: false, error: { message: 'Server error', code: 'SERVER_ERROR' } });
   }
 };

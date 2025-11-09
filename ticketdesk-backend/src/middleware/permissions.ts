@@ -31,8 +31,9 @@ export const requireRole = (minimumRole: string) => {
     const user = req.user as AuthenticatedUser;
     
     if (!user || !hasPermissionLevel(user.role, minimumRole)) {
-      return res.status(403).json({ 
-        message: `Access denied. Minimum role required: ${minimumRole}` 
+      return res.status(403).json({
+        success: false,
+        error: { message: `Access denied. Minimum role required: ${minimumRole}`, code: 'FORBIDDEN' }
       });
     }
     
@@ -46,7 +47,7 @@ export const canManageRole = (req: PermissionRequest, res: Response, next: NextF
   const targetRole = req.body.role || req.targetRole;
   
   if (!user || !targetRole) {
-    return res.status(403).json({ message: 'Access denied' });
+    return res.status(403).json({ success: false, error: { message: 'Access denied', code: 'FORBIDDEN' } });
   }
 
   // Super admin can manage all roles
@@ -55,24 +56,18 @@ export const canManageRole = (req: PermissionRequest, res: Response, next: NextF
   }
 
   // Sub admin can only manage students and faculty
-  if (user.role === 'sub_admin' && !['student', 'faculty'].includes(targetRole)) {
-    return res.status(403).json({ 
-      message: 'Sub-admins can only manage students and faculty' 
-    });
+    if (user.role === 'sub_admin' && !['student', 'faculty'].includes(targetRole)) {
+    return res.status(403).json({ success: false, error: { message: 'Sub-admins can only manage students and faculty', code: 'FORBIDDEN' } });
   }
 
   // Faculty can't manage other users
   if (user.role === 'faculty') {
-    return res.status(403).json({ 
-      message: 'Faculty members cannot manage user roles' 
-    });
+    return res.status(403).json({ success: false, error: { message: 'Faculty members cannot manage user roles', code: 'FORBIDDEN' } });
   }
 
   // Prevent managing higher or equal role
   if (!hasPermissionLevel(user.role, targetRole)) {
-    return res.status(403).json({ 
-      message: 'Cannot manage users with equal or higher roles' 
-    });
+    return res.status(403).json({ success: false, error: { message: 'Cannot manage users with equal or higher roles', code: 'FORBIDDEN' } });
   }
 
   next();
@@ -84,7 +79,7 @@ export const canManageDepartment = (req: PermissionRequest, res: Response, next:
   const targetDepartment = req.body.department || req.targetDepartment;
   
   if (!user) {
-    return res.status(403).json({ message: 'Access denied' });
+    return res.status(403).json({ success: false, error: { message: 'Access denied', code: 'FORBIDDEN' } });
   }
 
   // Super admin can manage all departments
@@ -94,9 +89,7 @@ export const canManageDepartment = (req: PermissionRequest, res: Response, next:
 
   // Sub admin can only manage their own department
   if (user.role === 'sub_admin' && user.department !== targetDepartment) {
-    return res.status(403).json({ 
-      message: 'You can only manage users in your own department' 
-    });
+    return res.status(403).json({ success: false, error: { message: 'You can only manage users in your own department', code: 'FORBIDDEN' } });
   }
 
   next();
@@ -109,23 +102,17 @@ export const canModifySuperAdmin = (req: Request, res: Response, next: NextFunct
   const targetRole = req.body.role;
 
   if (!user || user.role !== 'super_admin') {
-    return res.status(403).json({ 
-      message: 'Only super admins can modify super admin accounts' 
-    });
+    return res.status(403).json({ success: false, error: { message: 'Only super admins can modify super admin accounts', code: 'FORBIDDEN' } });
   }
 
   // Prevent super admin from modifying their own account
   if (targetUserId === user._id.toString()) {
-    return res.status(403).json({ 
-      message: 'Cannot modify your own super admin account' 
-    });
+    return res.status(403).json({ success: false, error: { message: 'Cannot modify your own super admin account', code: 'FORBIDDEN' } });
   }
 
   // Only allow creating new super admins if explicitly requested
   if (targetRole === 'super_admin' && !targetUserId) {
-    return res.status(403).json({ 
-      message: 'Creating new super admin accounts requires special authorization' 
-    });
+    return res.status(403).json({ success: false, error: { message: 'Creating new super admin accounts requires special authorization', code: 'FORBIDDEN' } });
   }
 
   next();
@@ -137,15 +124,11 @@ export const validateDepartmentOperation = (req: Request, res: Response, next: N
   const operation = req.body.operation;
   
   if (!user || user.role !== 'super_admin') {
-    return res.status(403).json({ 
-      message: 'Only super admins can perform department operations' 
-    });
+    return res.status(403).json({ success: false, error: { message: 'Only super admins can perform department operations', code: 'FORBIDDEN' } });
   }
 
   if (!['create', 'update', 'delete', 'merge'].includes(operation)) {
-    return res.status(400).json({ 
-      message: 'Invalid department operation' 
-    });
+    return res.status(400).json({ success: false, error: { message: 'Invalid department operation', code: 'INVALID_OPERATION' } });
   }
 
   next();

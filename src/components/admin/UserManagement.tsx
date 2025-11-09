@@ -16,7 +16,7 @@ import { Select } from '../ui/Select';
 import { Modal } from '../ui/Modal';
 import { Badge } from '../ui/Badge';
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import { apiClient } from '../../lib/api';
 
 // Types
 interface User {
@@ -82,15 +82,15 @@ export const UserManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get<{ users: User[] }>('/api/users', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      setUsers(response.data.users);
-      setError('');
+      const response = await apiClient.request<{ users: User[] }>('GET', '/users');
+      if (response.success && response.data) {
+        setUsers(response.data.users);
+        setError('');
+      } else {
+        throw new Error(response.error?.message || 'Failed to load users');
+      }
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to load users';
+      const message = error.message || 'Failed to load users';
       setError(message);
       toast.error(message);
       throw error;
@@ -101,18 +101,14 @@ export const UserManagement: React.FC = () => {
 
   const fetchDepartments = async () => {
     try {
-      interface DepartmentResponse {
-        departments: Department[];
+      const response = await apiClient.request<{ departments: Department[] }>('GET', '/departments');
+      if (response.success && response.data) {
+        setDepartments(response.data.departments);
+      } else {
+        throw new Error(response.error?.message || 'Failed to load departments');
       }
-      
-      const response = await axios.get<DepartmentResponse>('/api/departments', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      setDepartments(response.data.departments);
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to load departments';
+      const message = error.message || 'Failed to load departments';
       toast.error(message);
       throw error;
     }
@@ -128,19 +124,18 @@ export const UserManagement: React.FC = () => {
 
   const handleAddUser = async () => {
     try {
-      const response = await axios.post<{ user: User, message: string }>('/api/users', newUser, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      const createdUser = response.data.user;
-      setUsers([...users, createdUser]);
-      setNewUser({ name: '', email: '', role: 'student', password: '', department: '' });
-      setIsAddModalOpen(false);
-      toast.success(response.data.message || 'User added successfully!');
+      const response = await apiClient.request<{ user: User }>('POST', '/users', newUser);
+      if (response.success && response.data) {
+        const createdUser = response.data.user;
+        setUsers([...users, createdUser]);
+        setNewUser({ name: '', email: '', role: 'student', password: '', department: '' });
+        setIsAddModalOpen(false);
+        toast.success('User added successfully!');
+      } else {
+        throw new Error(response.error?.message || 'Failed to add user');
+      }
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to add user';
+      const message = error.message || 'Failed to add user';
       toast.error(message);
     }
   };
@@ -150,22 +145,22 @@ export const UserManagement: React.FC = () => {
 
     try {
       const userId = selectedUser._id || selectedUser.id;
-      const response = await axios.put<{ user: User, message: string }>(
-        `/api/users/${userId}`, 
-        selectedUser,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
+      const response = await apiClient.request<{ user: User }>(
+        'PUT',
+        `/users/${userId}`,
+        selectedUser
       );
 
-      setUsers(users.map(u => (u._id || u.id) === userId ? response.data.user : u));
-      setIsEditModalOpen(false);
-      setSelectedUser(null);
-      toast.success(response.data.message || 'User updated successfully!');
+      if (response.success && response.data) {
+        setUsers(users.map(u => (u._id || u.id) === userId ? response.data.user : u));
+        setIsEditModalOpen(false);
+        setSelectedUser(null);
+        toast.success('User updated successfully!');
+      } else {
+        throw new Error(response.error?.message || 'Failed to update user');
+      }
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to update user';
+      const message = error.message || 'Failed to update user';
       toast.error(message);
     }
   };
@@ -177,16 +172,16 @@ export const UserManagement: React.FC = () => {
     }
 
     try {
-      await axios.delete(`/api/users/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-
-      setUsers(users.filter(u => (u._id || u.id) !== userId));
-      toast.success('User deleted successfully!');
+      const response = await apiClient.request<void>('DELETE', `/users/${userId}`);
+      
+      if (response.success) {
+        setUsers(users.filter(u => (u._id || u.id) !== userId));
+        toast.success('User deleted successfully!');
+      } else {
+        throw new Error(response.error?.message || 'Failed to delete user');
+      }
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Failed to delete user';
+      const message = error.message || 'Failed to delete user';
       toast.error(message);
     }
   };

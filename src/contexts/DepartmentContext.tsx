@@ -31,9 +31,16 @@ export const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        console.log('No auth token found');
+        return;
+      }
 
-      const response = await fetch('/api/departments', {
+      // Use explicit API base URL (same as other contexts)
+      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+      console.log('Fetching departments from:', `${apiBase}/departments`);
+
+      const response = await fetch(`${apiBase}/departments`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
@@ -41,10 +48,16 @@ export const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch departments');
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || 'Failed to fetch departments');
       }
 
       const data = await response.json();
+      if (!data.departments) {
+        console.warn('No departments array in response:', data);
+        return;
+      }
+
       setDepartments(data.departments);
     } catch (error) {
       console.error('Error fetching departments:', error);

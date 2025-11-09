@@ -1,37 +1,35 @@
 import axios from 'axios';
+import type { User } from '../types';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Add auth token to all requests
-axios.interceptors.request.use((config) => {
+axios.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('token');
-  if (token) {
+  if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'student' | 'faculty' | 'sub_admin' | 'super_admin';
-  department?: string;
-}
-
 export interface CreateUserData {
   name: string;
   email: string;
   password: string;
-  role: string;
+  role: User['role'];
   department?: string;
+}
+
+interface ApiResponse<T> {
+  data: T;
+  message: string;
 }
 
 export const userApi = {
   getUsers: async (): Promise<User[]> => {
     try {
-      const response = await axios.get(`${API_URL}/users`);
-      return response.data;
+      const response = await axios.get<ApiResponse<User[]>>(`${API_URL}/users`);
+      return response.data.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to fetch users');
     }
@@ -39,8 +37,8 @@ export const userApi = {
 
   createUser: async (userData: CreateUserData): Promise<{ message: string }> => {
     try {
-      const response = await axios.post(`${API_URL}/users`, userData);
-      return response.data;
+      const response = await axios.post<ApiResponse<void>>(`${API_URL}/users`, userData);
+      return { message: response.data.message };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to create user');
     }
@@ -48,8 +46,8 @@ export const userApi = {
 
   updateUser: async (id: string, userData: Partial<CreateUserData>): Promise<{ message: string }> => {
     try {
-      const response = await axios.put(`${API_URL}/users/${id}`, userData);
-      return response.data;
+      const response = await axios.put<ApiResponse<void>>(`${API_URL}/users/${id}`, userData);
+      return { message: response.data.message };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to update user');
     }
@@ -57,8 +55,8 @@ export const userApi = {
 
   deleteUser: async (id: string): Promise<{ message: string }> => {
     try {
-      const response = await axios.delete(`${API_URL}/users/${id}`);
-      return response.data;
+      const response = await axios.delete<ApiResponse<void>>(`${API_URL}/users/${id}`);
+      return { message: response.data.message };
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to delete user');
     }
@@ -66,8 +64,8 @@ export const userApi = {
 
   getDepartments: async (): Promise<string[]> => {
     try {
-      const response = await axios.get(`${API_URL}/departments`);
-      return response.data;
+      const response = await axios.get<ApiResponse<string[]>>(`${API_URL}/departments`);
+      return response.data.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Failed to fetch departments');
     }

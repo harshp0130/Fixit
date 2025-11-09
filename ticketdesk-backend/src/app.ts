@@ -18,12 +18,28 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 // Configure CORS for development
-app.use(cors());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: false,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Serve uploaded files
 app.use(uploadsConfig.baseUrl, express.static(uploadsConfig.directory));
 
 connectDB();
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    success: true, 
+    data: { 
+      status: 'ok',
+      timestamp: new Date().toISOString()
+    } 
+  });
+});
 
 // Auth Routes
 app.post('/api/auth/register', registerUser);
