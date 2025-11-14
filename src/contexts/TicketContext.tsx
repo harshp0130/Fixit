@@ -22,7 +22,7 @@ export const useTickets = () => {
   return context;
 };
 
-export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
 
   // Fetch tickets from backend
@@ -202,4 +202,7 @@ export const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       {children}
     </TicketContext.Provider>
   );
-};
+}
+
+export { TicketProvider };
+export default TicketProvider;

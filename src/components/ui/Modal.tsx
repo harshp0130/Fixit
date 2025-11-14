@@ -16,9 +16,8 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   size = 'md'
 }) => {
-  if (!isOpen) return null;
-
-  const modalId = `modal-${Math.random().toString(36).substr(2, 9)}`;
+  // Stable IDs to avoid remounts across renders
+  const [modalId] = React.useState(() => `modal-${Math.random().toString(36).substr(2, 9)}`);
   const titleId = `${modalId}-title`;
 
   const sizeClasses = {
@@ -30,6 +29,8 @@ export const Modal: React.FC<ModalProps> = ({
 
   // Handle ESC key press
   React.useEffect(() => {
+    if (!isOpen) return;
+
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
@@ -38,40 +39,47 @@ export const Modal: React.FC<ModalProps> = ({
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
+  }, [onClose, isOpen]);
 
   // Trap focus within modal
   React.useEffect(() => {
-    const focusableElements = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    if (!isOpen) return;
+
+    const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
     const modal = document.getElementById(modalId);
     
-    if (modal) {
-      const firstFocusableElement = modal.querySelectorAll(focusableElements)[0] as HTMLElement;
-      const focusableContent = modal.querySelectorAll(focusableElements) as NodeListOf<HTMLElement>;
-      const lastFocusableElement = focusableContent[focusableContent.length - 1];
+    if (!modal) return;
 
-      const handleTab = (e: KeyboardEvent) => {
-        if (e.key === 'Tab') {
-          if (e.shiftKey) {
-            if (document.activeElement === firstFocusableElement) {
-              lastFocusableElement.focus();
-              e.preventDefault();
-            }
-          } else {
-            if (document.activeElement === lastFocusableElement) {
-              firstFocusableElement.focus();
-              e.preventDefault();
-            }
-          }
+    const focusable = Array.from(modal.querySelectorAll<HTMLElement>(focusableSelectors));
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (focusable.length === 0) return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          last?.focus();
+          e.preventDefault();
         }
-      };
+      } else {
+        if (document.activeElement === last) {
+          first?.focus();
+          e.preventDefault();
+        }
+      }
+    };
 
-      modal.addEventListener('keydown', handleTab);
-      firstFocusableElement.focus();
+    modal.addEventListener('keydown', handleKeyDown);
+    // Only move focus the first time the modal opens, not on every re-render
+    first?.focus();
 
-      return () => modal.removeEventListener('keydown', handleTab);
-    }
-  }, [modalId]);
+    return () => {
+      modal.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [modalId, isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <div 

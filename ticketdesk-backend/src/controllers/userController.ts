@@ -1,12 +1,13 @@
-import { Request, Response } from 'express';
-import User, { IUser } from '../models/User';
+import { Response } from 'express';
+import { AuthRequest } from '../types/auth';
+import User from '../models/User';
 import Ticket from '../models/Ticket';
 
-export const getUsers = async (req: Request, res: Response) => {
+export const getUsers = async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user!;
-    let query: any = {};
-    let roleQuery: any = {};
+  const query: Record<string, unknown> = {};
+  const roleQuery: Record<string, unknown> = {};
 
     // Only super_admin and sub_admin can access user list
     if (!['super_admin', 'sub_admin'].includes(user.role)) {
@@ -75,7 +76,7 @@ export const getUsers = async (req: Request, res: Response) => {
   }
 };
 
-export const addUser = async (req: Request, res: Response) => {
+export const addUser = async (req: AuthRequest, res: Response) => {
   const { name, email, role, password, department } = req.body;
   const currentUser = req.user!;
 
@@ -161,7 +162,7 @@ export const addUser = async (req: Request, res: Response) => {
   }
 };
 
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const { name, email, role, department } = req.body;
   const currentUser = req.user!;
@@ -231,7 +232,7 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 
     // Prepare update data
-    const updateData: any = {};
+  const updateData: Record<string, unknown> = {};
     if (name) updateData.name = name;
     if (email) updateData.email = email;
     if (role) updateData.role = role;
@@ -255,7 +256,7 @@ export const updateUser = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const currentUser = req.user!;
 

@@ -29,7 +29,7 @@ export const useAuthCheck = () => {
 export const usePolling = <T>(
   fetchFunction: () => Promise<T>,
   interval: number = 30000,
-  dependencies: any[] = []
+  dependencies: ReadonlyArray<unknown> = []
 ) => {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<Error | null>(null);
@@ -48,7 +48,7 @@ export const usePolling = <T>(
         setData(result);
         setError(null);
       } catch (e) {
-        setError(e as Error);
+        setError(e instanceof Error ? e : new Error(String(e)));
       } finally {
         setIsLoading(false);
       }
@@ -62,7 +62,7 @@ export const usePolling = <T>(
 
     // Cleanup
     return () => clearInterval(pollInterval);
-  }, [interval, ...dependencies]);
+  }, [interval, dependencies]);
 
   return { data, error, isLoading };
 };

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 
 interface Department {
@@ -14,17 +14,11 @@ interface DepartmentContextType {
   refreshDepartments: () => Promise<void>;
 }
 
-const DepartmentContext = createContext<DepartmentContextType | undefined>(undefined);
+export const DepartmentContext = createContext<DepartmentContextType | undefined>(undefined);
 
-export const useDepartments = () => {
-  const context = useContext(DepartmentContext);
-  if (context === undefined) {
-    throw new Error('useDepartments must be used within a DepartmentProvider');
-  }
-  return context;
-};
+export { default as useDepartments } from './DepartmentContext.hook';
 
-export const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const { user } = useAuth();
 
@@ -79,4 +73,7 @@ export const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       {children}
     </DepartmentContext.Provider>
   );
-};
+}
+
+export { DepartmentProvider };
+export default DepartmentProvider;

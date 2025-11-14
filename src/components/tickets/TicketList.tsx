@@ -10,7 +10,7 @@ export const TicketList: React.FC = () => {
   const { user } = useAuth();
   const { getUserTickets } = useTickets();
   
-  const userTickets = getUserTickets(user!.id);
+  const userTickets = user?.id ? getUserTickets(user.id) : [];
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {

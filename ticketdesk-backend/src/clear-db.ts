@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import User from '../models/User';
-import Ticket from '../models/Ticket';
+import User from './models/User';
+import Ticket from './models/Ticket';
 
 dotenv.config();
 

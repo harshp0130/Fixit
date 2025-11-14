@@ -1,19 +1,10 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../types/auth';
 import Ticket from '../models/Ticket';
-import { IUser } from '../models/User';
-import mongoose from 'mongoose';
 
-// Correctly types the request object to include user with ObjectId
-declare global {
-  namespace Express {
-    interface Request {
-      user?: IUser & { _id: mongoose.Types.ObjectId };
-    }
-  }
-}
 
 // Create a new ticket
-export const createTicket = async (req: Request, res: Response) => {
+export const createTicket = async (req: AuthRequest, res: Response) => {
   const { title, description, institute, location, roomNumber, department, priority } = req.body;
   const user = req.user!; // Use non-null assertion as auth middleware ensures user exists
   const baseUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
@@ -62,9 +53,9 @@ export const createTicket = async (req: Request, res: Response) => {
 };
 
 // Get all tickets for a specific user, or for admins based on role
-export const getTickets = async (req: Request, res: Response) => {
+export const getTickets = async (req: AuthRequest, res: Response) => {
   const user = req.user!; // Use non-null assertion
-  let query: any = {}; // Use `any` for flexible query object
+  let query: Record<string, unknown> = {}; // Use Record for flexible query object
   
   if (user.role === 'sub_admin' && user.department) {
     // Sub-admins see tickets for their department only
@@ -89,7 +80,7 @@ export const getTickets = async (req: Request, res: Response) => {
 };
 
 // Get a single ticket by ID
-export const getTicketById = async (req: Request, res: Response) => {
+export const getTicketById = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const user = req.user!; // Use non-null assertion
 
@@ -117,7 +108,7 @@ export const getTicketById = async (req: Request, res: Response) => {
 };
 
 // Update ticket status (Admin only)
-export const updateTicketStatus = async (req: Request, res: Response) => {
+export const updateTicketStatus = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const { newStatus, message } = req.body;
   const user = req.user!; // Use non-null assertion
@@ -154,7 +145,7 @@ export const updateTicketStatus = async (req: Request, res: Response) => {
 };
 
 // Update ticket priority (Admin only)
-export const updateTicketPriority = async (req: Request, res: Response) => {
+export const updateTicketPriority = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const { newPriority, message } = req.body;
   const user = req.user!; // Use non-null assertion
@@ -191,9 +182,9 @@ export const updateTicketPriority = async (req: Request, res: Response) => {
 };
 
 // Get analytics data for the dashboard
-export const getAnalytics = async (req: Request, res: Response) => {
+export const getAnalytics = async (req: AuthRequest, res: Response) => {
   const user = req.user!; // Use non-null assertion
-  let query: any = {};
+  let query: Record<string, unknown> = {};
   
   if (user.role === 'sub_admin' && user.department) {
     query = { department: user.department };
@@ -224,12 +215,13 @@ export const getAnalytics = async (req: Request, res: Response) => {
         'in-progress': tickets.filter(t => t.status === 'in-progress').length,
         resolved: tickets.filter(t => t.status === 'resolved').length
       },
-      topUsers: tickets.reduce((acc, ticket) => {
-        const userId = ticket.submittedBy.toString();
-        acc[userId] = (acc[userId] || { count: 0, name: (ticket.submittedBy as any).name, email: (ticket.submittedBy as any).email });
-        acc[userId].count++;
-        return acc;
-      }, {} as Record<string, { count: number; name: string; email: string }>),
+          topUsers: tickets.reduce((acc, ticket) => {
+            const submitted = ticket.submittedBy as { id: string; name: string; email: string };
+            const userId = submitted.id;
+            acc[userId] = (acc[userId] || { count: 0, name: submitted.name, email: submitted.email });
+            acc[userId].count++;
+            return acc;
+          }, {} as Record<string, { count: number; name: string; email: string }>),
       dailyTrends: Array.from({ length: 7 }, (_, i) => {
         const date = new Date(new Date().getTime() - i * 24 * 60 * 60 * 1000);
         const dayTickets = tickets.filter(t => new Date(t.submissionDate).toDateString() === date.toDateString()).length;

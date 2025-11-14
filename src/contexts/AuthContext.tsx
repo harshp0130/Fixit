@@ -1,4 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+// Removed incorrect axios type imports
+// Type guard for error objects with message and response
+function isErrorWithResponse(error: unknown): error is { message?: string; response?: { status?: number; data?: { error?: { code?: string } } }; code?: string; stack?: string } {
+  return typeof error === 'object' && error !== null && ('message' in error || 'response' in error);
+}
 import { User, AuthContextType } from '../types';
 import { apiClient } from '@/lib/api';
 import { LoginRequest, RegisterRequest } from '../types/api';
@@ -53,24 +58,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // For any other error shape, throw to be handled below (may retry)
         throw new Error(response.error?.message || 'Failed to refresh user data');
-      } catch (error: any) {
+      } catch (error: unknown) {
         attempts += 1;
-
-        // If explicit 401 from axios response or auth codes inside response -> logout
-        const status = error?.response?.status;
-        const errCode = error?.response?.data?.error?.code || error?.code;
+        let status: number | undefined, errCode: string | undefined, message: string | undefined;
+        if (isErrorWithResponse(error)) {
+          status = error.response?.status;
+          errCode = error.response?.data?.error?.code || error.code;
+          message = error.message;
+        } else if (error && typeof error === 'object' && 'message' in error) {
+          message = (error as { message?: string }).message;
+        } else {
+          message = error instanceof Error ? error.message : String(error);
+        }
         if (status === 401 || errCode === 'TOKEN_EXPIRED' || errCode === 'INVALID_TOKEN') {
           logout();
           return;
         }
-
-        // Network error / no response: retry once with backoff
-        if ((!error?.response || String(error.message).toLowerCase().includes('network')) && attempts < maxAttempts) {
+        if ((!status && message && message.toLowerCase().includes('network')) && attempts < maxAttempts) {
           await new Promise((r) => setTimeout(r, backoff(attempts)));
           continue;
         }
-
-        // Otherwise, don't logout immediately; log and exit (we'll keep the local state)
         console.warn('refreshUserData failed, keeping existing session without forcing logout', { attempts, error });
         return;
       }
@@ -134,9 +141,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Non-auth related failure during init: keep local user to avoid forcing logout on transient failures
             console.warn('Token verification failed during init but is not an auth error; keeping local session', response.error);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error('Auth verification error during init:', error);
-          if (error?.response?.status === 401 || error?.response?.data?.error?.code === 'TOKEN_EXPIRED') {
+          let status: number | undefined, errCode: string | undefined;
+          if (isErrorWithResponse(error)) {
+            status = error.response?.status;
+            errCode = error.response?.data?.error?.code;
+          }
+          if (status === 401 || errCode === 'TOKEN_EXPIRED') {
             logout();
           }
         }
@@ -153,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const interval = setInterval(refreshUserData, 30 * 60 * 1000); // 30 minutes
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refreshUserData]);
 
   const login = async (email: string, password: string, role: User['role']): Promise<boolean> => {
     try {
@@ -187,7 +199,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Update state
         setUser(user);
         setIsAuthenticated(true);
-  try { window.dispatchEvent(new CustomEvent('app:auth-changed')); } catch (e) { /* ignore */ }
+  try { window.dispatchEvent(new CustomEvent('app:auth-changed')); } catch { /* ignore */ }
         
         console.log('Login successful for role:', role);
         return true;
@@ -201,13 +213,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       throw new Error(response.error?.message || 'Login failed. Please try again.');
-    } catch (error: any) {
-      console.error('Login error:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        stack: error.stack
-      });
+    } catch (error: unknown) {
+      let message: string | undefined, response: unknown, status: number | undefined, stack: string | undefined;
+      if (isErrorWithResponse(error)) {
+        message = error.message;
+        response = error.response?.data;
+        status = error.response?.status;
+        stack = error.stack;
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        message = (error as { message?: string }).message;
+        stack = (error as { stack?: string }).stack;
+      } else {
+        message = error instanceof Error ? error.message : String(error);
+      }
+      console.error('Login error:', { message, response, status, stack });
       throw error;
     }
   };
@@ -228,7 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       throw new Error(response.error?.message || 'Registration failed');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Registration error:', error);
       return false;
     }
@@ -245,7 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     apiClient.clearToken();
     setUser(null);
     setIsAuthenticated(false);
-    try { window.dispatchEvent(new CustomEvent('app:auth-changed')); } catch (e) { /* ignore */ }
+    try { window.dispatchEvent(new CustomEvent('app:auth-changed')); } catch { /* ignore */ }
   };
 
   return (

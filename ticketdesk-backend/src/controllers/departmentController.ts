@@ -1,6 +1,5 @@
-import { Request, Response } from 'express';
-import User, { IUser } from '../models/User';
-import mongoose from 'mongoose';
+import { Response } from 'express';
+import User from '../models/User';
 import { AuthRequest } from '../types/auth';
 
 // Get all departments

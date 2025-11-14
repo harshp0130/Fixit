@@ -1,4 +1,4 @@
-import { User, Ticket, TicketUpdate } from '../types';
+import { User, Ticket } from '../types';
 
 export const mockUsers: User[] = [
   { id: '1', name: 'John Doe', email: 'john@student.edu', role: 'student' },

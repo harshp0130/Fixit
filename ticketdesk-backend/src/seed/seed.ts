@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import User from '../models/User';
 import Ticket from '../models/Ticket';
-import bcrypt from 'bcryptjs';
+// Removed unused import bcrypt
 
 dotenv.config();
 
@@ -25,7 +25,7 @@ const users = [
 ];
 
 // Add one sub_admin per department
-departmentsList.forEach((dept) => {
+for (const dept of departmentsList) {
   users.push({
     name: `${dept} Sub Admin`,
     email: `${dept.toLowerCase().replace(/\s+/g, '')}.subadmin@fixit.com`,
@@ -33,7 +33,7 @@ departmentsList.forEach((dept) => {
     role: 'sub_admin',
     department: dept
   });
-});
+}
 
 const tickets = [
   {
@@ -91,29 +91,31 @@ async function seedDatabase() {
         console.log(`Successfully created user: ${user.email}`);
         return createdUser;
       })
-    ) as any[];
+  ) as Array<Record<string, unknown>>;
     console.log('Created users');
 
     // Create tickets with references to users
-    const studentUser = createdUsers.find(user => user.role === 'student');
-    const subAdminUser = createdUsers.find(user => user.role === 'sub_admin');
+  const studentUser = createdUsers.find(user => user.role === 'student');
 
     await Promise.all(
       tickets.map(async (ticket) => {
-        const submitter: any = studentUser || createdUsers[0];
+        const submitter = studentUser || createdUsers[0];
         const submitterObj = submitter ? {
-          id: (submitter._id as any).toHexString ? (submitter._id as any).toHexString() : String(submitter._id),
+          id: (submitter._id && typeof submitter._id === 'object' && typeof (submitter._id as { toHexString?: () => string }).toHexString === 'function')
+            ? (submitter._id as { toHexString: () => string }).toHexString()
+            : String(submitter._id),
           name: submitter.name,
           email: submitter.email,
           role: submitter.role,
           department: submitter.department
         } : undefined;
 
-        const updater: any = submitter;
-        const updaterObj = updater ? {
-          id: (updater._id as any).toHexString ? (updater._id as any).toHexString() : String(updater._id),
-          name: updater.name,
-          role: updater.role
+        const updaterObj = submitter ? {
+          id: (submitter._id && typeof submitter._id === 'object' && typeof (submitter._id as { toHexString?: () => string }).toHexString === 'function')
+            ? (submitter._id as { toHexString: () => string }).toHexString()
+            : String(submitter._id),
+          name: submitter.name,
+          role: submitter.role
         } : undefined;
 
         return Ticket.create({

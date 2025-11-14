@@ -27,8 +27,8 @@ class ApiClient {
 
     // Add response interceptor for error handling
     this.client.interceptors.response.use(
-      (response: any) => response,
-      (error: any) => {
+      (response) => response,
+      (error) => {
         if (error?.response?.status === 401) {
             // Handle unauthorized access: clear stored auth and emit a global event so UI can redirect
             localStorage.removeItem('token');
@@ -81,51 +81,60 @@ class ApiClient {
       });
 
       // Validate response format
-      const responseData = response.data as { success?: boolean; data?: any; error?: any };
+  const responseData = response.data as Record<string, unknown>;
       
       if (typeof responseData?.success !== 'boolean') {
         console.error('Invalid response format:', responseData);
         throw new Error('Invalid response format from server');
       }
-      
-      if (responseData.success && !responseData.data && !url.includes('/health')) {
+      if ((responseData.success as boolean) && !responseData.data && !url.includes('/health')) {
         console.error('Success response missing data:', responseData);
         throw new Error('Invalid success response format');
       }
-      
-      if (!responseData.success && !responseData.error) {
+      if (!(responseData.success as boolean) && !responseData.error) {
         console.error('Error response missing error details:', responseData);
         throw new Error('Invalid error response format');
       }
-
       return response.data as ApiResponse<T>;
-    } catch (error: any) {
-      console.error(`Error in ${method} ${url}:`, {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        stack: error.stack
-      });
+    } catch (error: unknown) {
+      if (typeof error === 'object' && error !== null && 'isAxiosError' in error) {
+  const axiosError = error as unknown as { message: string; response?: { data?: { success?: boolean; error?: { message?: string; code?: string } }; status?: number }; stack?: string; };
+        console.error(`Error in ${method} ${url}:`, {
+          message: axiosError.message,
+          response: axiosError.response?.data,
+          status: axiosError.response?.status,
+          stack: axiosError.stack
+        });
 
-      if (error.response?.status === 401) {
-        // Clear token on auth errors and surface the error to the caller so UI can redirect
-        this.clearToken();
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        console.warn(`Unauthorized response for ${method} ${url}`);
+        if (axiosError.response?.status === 401) {
+          // Clear token on auth errors and surface the error to the caller so UI can redirect
+          this.clearToken();
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          console.warn(`Unauthorized response for ${method} ${url}`);
+        }
+
+        if (axiosError.response?.data && typeof axiosError.response.data.success === 'boolean') {
+          return axiosError.response.data as ApiResponse<T>;
+        }
+
+        return {
+          success: false,
+          error: {
+            message: axiosError.message || 'An unexpected error occurred',
+            code: axiosError.response?.status === 401 ? 'UNAUTHORIZED' : 'UNKNOWN_ERROR',
+          },
+        };
+      } else {
+        // Non-Axios error
+        return {
+          success: false,
+          error: {
+            message: (error instanceof Error && error.message) ? error.message : 'An unexpected error occurred',
+            code: 'UNKNOWN_ERROR',
+          },
+        };
       }
-
-      if (error.response?.data && typeof error.response.data.success === 'boolean') {
-        return error.response.data as ApiResponse<T>;
-      }
-
-      return {
-        success: false,
-        error: {
-          message: error.message || 'An unexpected error occurred',
-          code: error.response?.status === 401 ? 'UNAUTHORIZED' : 'UNKNOWN_ERROR',
-        },
-      };
     }
   }
 

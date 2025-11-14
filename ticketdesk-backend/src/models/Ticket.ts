@@ -63,16 +63,16 @@ const TicketSchema: Schema = new Schema({
 });
 
 // Add virtual for id to match frontend expectations
-TicketSchema.virtual('id').get(function(this: any) {
+TicketSchema.virtual('id').get(function(this: mongoose.Document & { _id: mongoose.Types.ObjectId }) {
   return this._id.toHexString();
 });
 
 // Ensure virtuals are included in JSON
 TicketSchema.set('toJSON', {
   virtuals: true,
-  transform: (_doc: any, ret: any) => {
-    if (ret._id) delete ret._id;
-    if (ret.__v) delete ret.__v;
+  transform: (_doc: mongoose.Document, ret: Record<string, unknown>) => {
+    if ('_id' in ret) delete ret._id;
+    if ('__v' in ret) delete ret.__v;
     return ret;
   }
 });

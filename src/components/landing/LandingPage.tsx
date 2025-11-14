@@ -5,14 +5,9 @@ import {
   Users, 
   Clock, 
   Shield, 
-  CheckCircle, 
   ArrowRight,
   Star,
-  Zap,
-  Globe,
-  Award,
-  TrendingUp,
-  MessageSquare
+  Zap
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 

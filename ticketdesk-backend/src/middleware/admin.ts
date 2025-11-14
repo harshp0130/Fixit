@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types/auth';
 
 // Type for extended request with department parameter
@@ -37,7 +37,6 @@ export const superAdmin = (req: AuthRequest, res: Response, next: NextFunction) 
 
   // Check if trying to modify another super admin
   const targetUserId = req.params.id;
-  const targetRole = req.body.role;
 
   if (targetUserId === user._id.toString()) {
     return res.status(403).json({ success: false, error: { message: 'Cannot modify your own super admin account.', code: 'FORBIDDEN' } });

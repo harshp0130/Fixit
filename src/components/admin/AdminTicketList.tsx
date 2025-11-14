@@ -8,18 +8,106 @@ import {
   Calendar,
   User,
   Tag,
-  AlertTriangle,
-  ChevronDown
+  AlertTriangle
 } from 'lucide-react';
 import { useTickets } from '../../contexts/TicketContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDepartments } from '../../contexts/DepartmentContext';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Modal } from '../ui/Modal';
 import toast from 'react-hot-toast';
+
+const StatusModal = React.memo(({
+  isOpen,
+  onClose,
+  options,
+  value,
+  onChange,
+  message,
+  onMessageChange,
+  onSubmit,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  options: { value: string; label: string }[];
+  value: 'pending' | 'in-progress' | 'resolved';
+  onChange: (v: 'pending' | 'in-progress' | 'resolved') => void;
+  message: string;
+  onMessageChange: (v: string) => void;
+  onSubmit: () => void;
+}) => (
+  <Modal isOpen={isOpen} onClose={onClose} title="Update Ticket Status" size="md">
+    <div className="space-y-4">
+      <Select
+        label="New Status"
+        options={options}
+        value={value}
+        onChange={(e) => onChange(e.target.value as 'pending' | 'in-progress' | 'resolved')}
+      />
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Update Message (Optional)</label>
+        <textarea
+          rows={3}
+          value={message}
+          onChange={(e) => onMessageChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Add a message about this status update..."
+        />
+      </div>
+      <div className="flex justify-end space-x-3 pt-4">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button onClick={onSubmit}>Update Status</Button>
+      </div>
+    </div>
+  </Modal>
+));
+
+const PriorityModal = React.memo(({
+  isOpen,
+  onClose,
+  options,
+  value,
+  onChange,
+  message,
+  onMessageChange,
+  onSubmit,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  options: { value: string; label: string }[];
+  value: 'low' | 'medium' | 'high';
+  onChange: (v: 'low' | 'medium' | 'high') => void;
+  message: string;
+  onMessageChange: (v: string) => void;
+  onSubmit: () => void;
+}) => (
+  <Modal isOpen={isOpen} onClose={onClose} title="Update Ticket Priority" size="md">
+    <div className="space-y-4">
+      <Select
+        label="New Priority"
+        options={options}
+        value={value}
+        onChange={(e) => onChange(e.target.value as 'low' | 'medium' | 'high')}
+      />
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Update Message (Optional)</label>
+        <textarea
+          rows={3}
+          value={message}
+          onChange={(e) => onMessageChange(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          placeholder="Add a message about this priority update..."
+        />
+      </div>
+      <div className="flex justify-end space-x-3 pt-4">
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        <Button onClick={onSubmit}>Update Priority</Button>
+      </div>
+    </div>
+  </Modal>
+));
 
 export const AdminTicketList: React.FC = () => {
   const { tickets, updateTicketStatus, updateTicketPriority, getDepartmentTickets, getAllTickets } = useTickets();
@@ -49,7 +137,7 @@ export const AdminTicketList: React.FC = () => {
       availableTickets = getAllTickets();
     }
     
-    let filtered = availableTickets.filter(ticket => {
+    const filtered = availableTickets.filter(ticket => {
       const matchesSearch = 
         ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         ticket.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -71,10 +159,11 @@ export const AdminTicketList: React.FC = () => {
       case 'date-asc':
         filtered.sort((a, b) => new Date(a.submissionDate).getTime() - new Date(b.submissionDate).getTime());
         break;
-      case 'priority-desc':
+      case 'priority-desc': {
         const priorityOrder = { high: 3, medium: 2, low: 1 };
         filtered.sort((a, b) => priorityOrder[b.priority as keyof typeof priorityOrder] - priorityOrder[a.priority as keyof typeof priorityOrder]);
         break;
+      }
       case 'status':
         filtered.sort((a, b) => a.status.localeCompare(b.status));
         break;
@@ -83,25 +172,33 @@ export const AdminTicketList: React.FC = () => {
     }
 
     return filtered;
-  }, [tickets, user, searchTerm, statusFilter, priorityFilter, categoryFilter, sortBy, getDepartmentTickets]);
+  }, [tickets, user, searchTerm, statusFilter, priorityFilter, categoryFilter, sortBy, getDepartmentTickets, getAllTickets]);
 
-  const handleStatusUpdate = () => {
-    if (selectedTicket) {
-      updateTicketStatus(selectedTicket, newStatus, statusMessage || `Status updated to ${newStatus}`);
+  const handleStatusUpdate = async () => {
+    if (!selectedTicket) return;
+    try {
+      await updateTicketStatus(selectedTicket, newStatus, statusMessage || `Status updated to ${newStatus}`);
       toast.success('Ticket status updated successfully!');
       setIsStatusModalOpen(false);
       setSelectedTicket(null);
       setStatusMessage('');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to update ticket status';
+      toast.error(msg);
     }
   };
 
-  const handlePriorityUpdate = () => {
-    if (selectedTicket) {
-      updateTicketPriority(selectedTicket, newPriority, priorityMessage || `Priority updated to ${newPriority}`);
+  const handlePriorityUpdate = async () => {
+    if (!selectedTicket) return;
+    try {
+      await updateTicketPriority(selectedTicket, newPriority, priorityMessage || `Priority updated to ${newPriority}`);
       toast.success('Ticket priority updated successfully!');
       setIsPriorityModalOpen(false);
       setSelectedTicket(null);
       setPriorityMessage('');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to update ticket priority';
+      toast.error(msg);
     }
   };
 
@@ -145,11 +242,6 @@ export const AdminTicketList: React.FC = () => {
     });
   };
 
-  const getUniqueCategories = () => {
-    const categories = [...new Set(tickets.map(t => t.department))];
-    return categories.sort();
-  };
-
   const statusOptions = [
     { value: 'all', label: 'All Statuses' },
     { value: 'pending', label: 'Pending' },
@@ -181,17 +273,17 @@ export const AdminTicketList: React.FC = () => {
     { value: 'status', label: 'By Status' }
   ];
 
-  const newStatusOptions = [
+  const newStatusOptions = React.useMemo(() => ([
     { value: 'pending', label: 'Pending' },
     { value: 'in-progress', label: 'In Progress' },
     { value: 'resolved', label: 'Resolved' }
-  ];
+  ]), []);
 
-  const newPriorityOptions = [
+  const newPriorityOptions = React.useMemo(() => ([
     { value: 'low', label: 'Low' },
     { value: 'medium', label: 'Medium' },
     { value: 'high', label: 'High' }
-  ];
+  ]), []);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -397,88 +489,28 @@ export const AdminTicketList: React.FC = () => {
       </div>
 
       {/* Status Update Modal */}
-      <Modal
+      <StatusModal
         isOpen={isStatusModalOpen}
         onClose={() => setIsStatusModalOpen(false)}
-        title="Update Ticket Status"
-        size="md"
-      >
-        <div className="space-y-4">
-          <Select
-            label="New Status"
-            options={newStatusOptions}
-            value={newStatus}
-            onChange={(e) => setNewStatus(e.target.value as 'pending' | 'in-progress' | 'resolved')}
-          />
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Update Message (Optional)
-            </label>
-            <textarea
-              rows={3}
-              value={statusMessage}
-              onChange={(e) => setStatusMessage(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Add a message about this status update..."
-            />
-          </div>
-          
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              variant="secondary"
-              onClick={() => setIsStatusModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleStatusUpdate}>
-              Update Status
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        options={newStatusOptions}
+        value={newStatus}
+        onChange={(v) => setNewStatus(v)}
+        message={statusMessage}
+        onMessageChange={setStatusMessage}
+        onSubmit={handleStatusUpdate}
+      />
 
       {/* Priority Update Modal */}
-      <Modal
+      <PriorityModal
         isOpen={isPriorityModalOpen}
         onClose={() => setIsPriorityModalOpen(false)}
-        title="Update Ticket Priority"
-        size="md"
-      >
-        <div className="space-y-4">
-          <Select
-            label="New Priority"
-            options={newPriorityOptions}
-            value={newPriority}
-            onChange={(e) => setNewPriority(e.target.value as 'low' | 'medium' | 'high')}
-          />
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Update Message (Optional)
-            </label>
-            <textarea
-              rows={3}
-              value={priorityMessage}
-              onChange={(e) => setPriorityMessage(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Add a message about this priority update..."
-            />
-          </div>
-          
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button
-              variant="secondary"
-              onClick={() => setIsPriorityModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handlePriorityUpdate}>
-              Update Priority
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        options={newPriorityOptions}
+        value={newPriority}
+        onChange={(v) => setNewPriority(v)}
+        message={priorityMessage}
+        onMessageChange={setPriorityMessage}
+        onSubmit={handlePriorityUpdate}
+      />
     </div>
   );
 };

@@ -4,8 +4,6 @@ import {
   TrendingUp, 
   TrendingDown,
   Activity,
-  Calendar,
-  Users,
   Ticket,
   Clock,
   CheckCircle,
@@ -331,7 +329,7 @@ export const Analytics: React.FC = () => {
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {analytics.topUsers.map((user, index) => (
+              {analytics.topUsers.map((user) => (
                 <div key={user.email} className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-100">
                   <div className="flex items-center space-x-3">
                     <div className="h-8 w-8 bg-emerald-500 rounded-lg flex items-center justify-center">

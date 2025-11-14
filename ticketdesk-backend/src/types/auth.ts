@@ -3,7 +3,8 @@ import { JwtPayload } from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { IUser } from '../models/User';
 
-export interface AuthRequest extends Request {
+export interface AuthRequest<T = any> extends Request {
+  body: T;
   user?: IUser & { _id: mongoose.Types.ObjectId };
 }
 

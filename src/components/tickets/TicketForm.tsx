@@ -85,7 +85,18 @@ export const TicketForm: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const payload: any = {
+      type TicketPayload = {
+        title: string;
+        institute: string;
+        location: string;
+        roomNumber: string;
+        department: string;
+        description: string;
+        priority: 'low' | 'medium' | 'high';
+        status: 'pending';
+        imageFile?: File;
+      };
+      const payload: TicketPayload = {
         title: formData.title,
         institute: formData.institute,
         location: formData.location,
@@ -93,16 +104,16 @@ export const TicketForm: React.FC = () => {
         department: formData.department,
         description: formData.description,
         priority: formData.priority as 'low' | 'medium' | 'high',
-        status: 'pending'
+        status: 'pending',
+        ...(formData.imageFile ? { imageFile: formData.imageFile } : {})
       };
-      if (formData.imageFile) payload.imageFile = formData.imageFile;
 
       await createTicket(payload);
       toast.success('Ticket submitted successfully!');
       navigate('/tickets');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Ticket submit error:', error);
-      const msg = (error as any)?.message || 'Failed to submit ticket. Please try again.';
+      const msg = (error instanceof Error && error.message) ? error.message : 'Failed to submit ticket. Please try again.';
       toast.error(msg);
     } finally {
       setLoading(false);

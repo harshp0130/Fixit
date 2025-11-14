@@ -60,9 +60,10 @@ export const Login: React.FC = () => {
       } else {
         toast.error('Login failed. Please check your credentials and role.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Login failed. Please try again.');
+      const message = (error instanceof Error && error.message) ? error.message : 'Login failed. Please try again.';
+      toast.error(message);
     } finally {
       setLoading(false);
     }

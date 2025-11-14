@@ -78,7 +78,7 @@ export const userService = {
         }
       });
       return response.ok;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

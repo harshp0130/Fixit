@@ -1,7 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import path from 'path';
 import { uploadsConfig } from './config/uploads';
 import connectDB from './config/db';
 

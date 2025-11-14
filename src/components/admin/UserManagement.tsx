@@ -10,6 +10,7 @@ import {
   Shield
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useDepartments } from '../../contexts/DepartmentContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
@@ -36,15 +37,10 @@ interface Department {
   subAdmins: number;
 }
 
-interface ApiResponse<T> {
-  data: T;
-  message?: string;
-}
-
 export const UserManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  const { departments } = useDepartments();
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -89,8 +85,8 @@ export const UserManagement: React.FC = () => {
       } else {
         throw new Error(response.error?.message || 'Failed to load users');
       }
-    } catch (error: any) {
-      const message = error.message || 'Failed to load users';
+    } catch (error: unknown) {
+      const message = (error instanceof Error && error.message) ? error.message : 'Failed to load users';
       setError(message);
       toast.error(message);
       throw error;
@@ -103,12 +99,13 @@ export const UserManagement: React.FC = () => {
     try {
       const response = await apiClient.request<{ departments: Department[] }>('GET', '/departments');
       if (response.success && response.data) {
-        setDepartments(response.data.departments);
+        // Departments fetch for reference (not stored locally currently)
+        return response.data.departments;
       } else {
         throw new Error(response.error?.message || 'Failed to load departments');
       }
-    } catch (error: any) {
-      const message = error.message || 'Failed to load departments';
+    } catch (error: unknown) {
+      const message = (error instanceof Error && error.message) ? error.message : 'Failed to load departments';
       toast.error(message);
       throw error;
     }
@@ -124,7 +121,21 @@ export const UserManagement: React.FC = () => {
 
   const handleAddUser = async () => {
     try {
-      const response = await apiClient.request<{ user: User }>('POST', '/users', newUser);
+      // Enforce department requirement for specific roles
+      const roleNeedsDept = ['student', 'faculty', 'sub_admin'].includes(newUser.role);
+      const payload = { ...newUser };
+
+      // If current user is sub_admin, lock department to their own
+      if (currentUser?.role === 'sub_admin') {
+        payload.department = currentUser.department || '';
+      }
+
+      if (roleNeedsDept && !payload.department) {
+        toast.error('Department is required for the selected role');
+        return;
+      }
+
+      const response = await apiClient.request<{ user: User }>('POST', '/users', payload);
       if (response.success && response.data) {
         const createdUser = response.data.user;
         setUsers([...users, createdUser]);
@@ -134,8 +145,8 @@ export const UserManagement: React.FC = () => {
       } else {
         throw new Error(response.error?.message || 'Failed to add user');
       }
-    } catch (error: any) {
-      const message = error.message || 'Failed to add user';
+    } catch (error: unknown) {
+      const message = (error instanceof Error && error.message) ? error.message : 'Failed to add user';
       toast.error(message);
     }
   };
@@ -151,16 +162,16 @@ export const UserManagement: React.FC = () => {
         selectedUser
       );
 
-      if (response.success && response.data) {
-        setUsers(users.map(u => (u._id || u.id) === userId ? response.data.user : u));
+      if (response.success && response.data && response.data.user) {
+        setUsers(users.map(u => (u._id || u.id) === userId ? (response.data?.user || u) : u));
         setIsEditModalOpen(false);
         setSelectedUser(null);
         toast.success('User updated successfully!');
       } else {
         throw new Error(response.error?.message || 'Failed to update user');
       }
-    } catch (error: any) {
-      const message = error.message || 'Failed to update user';
+    } catch (error: unknown) {
+      const message = (error instanceof Error && error.message) ? error.message : 'Failed to update user';
       toast.error(message);
     }
   };
@@ -180,13 +191,13 @@ export const UserManagement: React.FC = () => {
       } else {
         throw new Error(response.error?.message || 'Failed to delete user');
       }
-    } catch (error: any) {
-      const message = error.message || 'Failed to delete user';
+    } catch (error: unknown) {
+      const message = (error instanceof Error && error.message) ? error.message : 'Failed to delete user';
       toast.error(message);
     }
   };
 
-  const openEditModal = (user: any) => {
+  const openEditModal = (user: User) => {
     setSelectedUser({ ...user });
     setIsEditModalOpen(true);
   };
@@ -530,9 +541,32 @@ export const UserManagement: React.FC = () => {
             label="Role"
             options={availableRoleOptions}
             value={newUser.role}
-            onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+            onChange={(e) => {
+              const role = e.target.value;
+              // If current user is sub_admin, keep department locked to their own
+              const lockedDept = currentUser?.role === 'sub_admin' ? (currentUser.department || '') : newUser.department;
+              setNewUser({ ...newUser, role, department: lockedDept });
+            }}
             required
           />
+          {['student','faculty','sub_admin'].includes(newUser.role) && (
+            <Select
+              label="Department"
+              options={([
+                { value: '', label: 'Select Department' },
+                ...((departments && departments.length > 0 ? departments : [
+                  { name: 'Computer Science' },
+                  { name: 'Electrical' },
+                  { name: 'Mechanical' },
+                  { name: 'Civil' }
+                ]).map(d => ({ value: d.name, label: d.name })))
+              ])}
+              value={currentUser?.role === 'sub_admin' ? (currentUser.department || '') : (newUser.department || '')}
+              onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+              required
+              disabled={currentUser?.role === 'sub_admin'}
+            />
+          )}
           <Input
             label="Password"
             type="password"
@@ -586,34 +620,22 @@ export const UserManagement: React.FC = () => {
               onChange={(e) => setSelectedUser({ ...selectedUser, role: e.target.value })}
               required
             />
-            {selectedUser.role === 'sub_admin' && (
+            {['student','faculty','sub_admin'].includes(selectedUser.role) && (
               <Select
                 label="Department"
-                options={[
+                options={([
                   { value: '', label: 'Select Department' },
-                  { value: 'Computer Science', label: 'Computer Science' },
-                  { value: 'Mechanical', label: 'Mechanical' },
-                  { value: 'Food Tech', label: 'Food Tech' },
-                  { value: 'Biotech', label: 'Biotech' }
-                ]}
+                  ...((departments && departments.length > 0 ? departments : [
+                    { name: 'Computer Science' },
+                    { name: 'Electrical' },
+                    { name: 'Mechanical' },
+                    { name: 'Civil' }
+                  ]).map(d => ({ value: d.name, label: d.name })))
+                ])}
                 value={selectedUser.department || ''}
                 onChange={(e) => setSelectedUser({ ...selectedUser, department: e.target.value })}
                 required
-              />
-            )}
-            {newUser.role === 'sub_admin' && (
-              <Select
-                label="Department"
-                options={[
-                  { value: '', label: 'Select Department' },
-                  { value: 'Computer Science', label: 'Computer Science' },
-                  { value: 'Mechanical', label: 'Mechanical' },
-                  { value: 'Food Tech', label: 'Food Tech' },
-                  { value: 'Biotech', label: 'Biotech' }
-                ]}
-                value={newUser.department || ''}
-                onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
-                required
+                disabled={currentUser?.role === 'sub_admin'}
               />
             )}
             <div className="flex justify-end space-x-3 pt-4">

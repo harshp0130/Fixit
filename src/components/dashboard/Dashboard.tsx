@@ -8,9 +8,9 @@ import { Badge } from '../ui/Badge';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { tickets, getUserTickets } = useTickets();
+  const { getUserTickets } = useTickets();
   
-  const userTickets = user ? getUserTickets(user.id) : [];
+  const userTickets = user?.id ? getUserTickets(user.id) : [];
   
   const getTicketStats = () => {
     const pending = userTickets.filter(t => t.status === 'pending').length;
@@ -166,7 +166,7 @@ export const Dashboard: React.FC = () => {
         </div>
         <div className="px-6 py-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {user?.role !== 'admin' && (
+            {user?.role !== 'sub_admin' && user?.role !== 'super_admin' && (
               <Link to="/tickets/new">
                 <div className="relative group bg-gradient-to-br from-blue-50 to-indigo-50 p-8 focus-within:ring-2 focus-within:ring-inset focus-within:ring-blue-500 rounded-2xl hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-blue-100">
                   <div>

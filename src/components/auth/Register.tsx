@@ -52,7 +52,7 @@ export const Register: React.FC = () => {
         toast.success('Registration successful! Please login to continue.');
         navigate('/login');
       }
-    } catch (error) {
+    } catch {
       toast.error('Registration failed. Please try again.');
     } finally {
       setLoading(false);

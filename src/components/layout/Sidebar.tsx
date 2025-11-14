@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Home, Plus, List, Settings, X, BarChart3, Users, TrendingUp } from 'lucide-react';
+import { Home, Plus, List, X, Users, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
@@ -56,7 +56,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 };
 
 const SidebarContent: React.FC<{
-  navigation: Array<{ name: string; href: string; icon: any }>;
+  navigation: Array<{ name: string; href: string; icon: React.ElementType }>;
   currentPath: string;
 }> = ({ navigation, currentPath }) => {
   return (

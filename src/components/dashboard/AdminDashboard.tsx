@@ -20,7 +20,7 @@ import { Button } from '../ui/Button';
 
 export const AdminDashboard: React.FC = () => {
   const { tickets } = useTickets();
-  const { user } = useAuth ? useAuth() : { user: null };
+  const { user } = useAuth();
   // For sub_admin, filter tickets by department
   const filteredTickets = (user?.role === 'sub_admin' && user?.department)
     ? tickets.filter(t => t.department === user.department)
@@ -53,15 +53,6 @@ export const AdminDashboard: React.FC = () => {
   const stats = getOverallStats();
   const departmentStats = getCategoryStats();
   const recentTickets = getRecentTickets();
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'danger';
-      case 'medium': return 'warning';
-      case 'low': return 'default';
-      default: return 'default';
-    }
-  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
