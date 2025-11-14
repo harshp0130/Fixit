@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "vite"
+    "start": "cd ticketdesk-backend && npm start"
   },
   "dependencies": {
     "@types/axios": "^0.9.36",
