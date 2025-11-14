@@ -71,5 +71,5 @@ app.put('/api/departments/:name', auth, superAdmin, updateDepartment);
 app.delete('/api/departments/:name', auth, superAdmin, deleteDepartment);
 app.post('/api/departments/merge', auth, superAdmin, mergeDepartments);
 
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5000', 10);
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));

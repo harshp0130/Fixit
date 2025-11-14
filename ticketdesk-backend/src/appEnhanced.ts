@@ -90,5 +90,5 @@ app.put('/api/departments/:name', auth, superAdmin, adminLimiter, updateDepartme
 app.delete('/api/departments/:name', auth, superAdmin, adminLimiter, deleteDepartment);
 app.post('/api/departments/merge', auth, superAdmin, adminLimiter, mergeDepartments);
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT} with enhanced security`));
+const PORT = parseInt(process.env.PORT || '5000', 10);
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT} with enhanced security`));
