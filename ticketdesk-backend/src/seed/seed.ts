@@ -91,7 +91,7 @@ async function seedDatabase() {
         console.log(`Successfully created user: ${user.email}`);
         return createdUser;
       })
-  ) as Array<Record<string, unknown>>;
+    );
     console.log('Created users');
 
     // Create tickets with references to users
