@@ -16,8 +16,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/services': {
-        target: 'target: 'https://infrastructureservice-backend.onrender.com'
-',
+        target: 'https://infrastructureservice-backend.onrender.com/api',
         changeOrigin: true,
         secure: false,
         ws: true,
