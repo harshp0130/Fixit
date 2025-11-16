@@ -5,7 +5,7 @@ const API_BASE_URL = '/api';
 export const userService = {
   getAllUsers: async (): Promise<User[]> => {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/users`, {
+    const response = await fetch(`$https://infrastructureservice-backend.onrender.com/users`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json'
