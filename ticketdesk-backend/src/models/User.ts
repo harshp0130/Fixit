@@ -24,6 +24,4 @@ UserSchema.pre<IUser>('save', async function (next) {
   next();
 });
 
-UserSchema.index({ email: 1 }, { unique: true });
-
 export default mongoose.model<IUser>('User', UserSchema);
