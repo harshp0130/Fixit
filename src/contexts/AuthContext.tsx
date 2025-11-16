@@ -89,7 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const testApiConnection = async () => {
       try {
         console.log('Testing API connection...');
-        const response = await fetch('https://infrastructureservice-backend.onrender.com/api/health');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/health`);
         if (response.ok) {
           console.log('API Connection test successful');
         } else {
