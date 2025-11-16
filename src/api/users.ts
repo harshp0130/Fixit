@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { User } from '../types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://infrastructureservice-backend.onrender.com';
+const API_URL = import.meta.env.VITE_API_URL || 'https://infrastructureservice-backend.onrender.com/api';
 
 // Add auth token to all requests
 axios.interceptors.request.use((config) => {
