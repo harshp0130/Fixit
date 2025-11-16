@@ -18,7 +18,7 @@ const app = express();
 app.use(express.json());
 // Configure CORS for development
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173','https://infrastructureservice-frontend.onrender.com'
+  origin: process.env.CORS_ORIGIN || 'https://infrastructureservice-frontend.onrender.com',
   credentials: false,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

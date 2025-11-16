@@ -31,7 +31,7 @@ const TicketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+      const apiBase = (import.meta.env.VITE_API_URL as string) || 'https://infrastructureservice-backend.onrender.com/api';
 
       const response = await fetch(`${apiBase}/tickets`, {
         headers: {

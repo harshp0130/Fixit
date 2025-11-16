@@ -31,7 +31,7 @@ const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Use explicit API base URL (same as other contexts)
-      const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+      const apiBase = (import.meta.env.VITE_API_URL as string) ||  'https://infrastructureservice-backend.onrender.com/api';
       console.log('Fetching departments from:', `${apiBase}/departments`);
 
       const response = await fetch(`${apiBase}/departments`, {
