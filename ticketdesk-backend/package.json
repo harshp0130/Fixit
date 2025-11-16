@@ -7,8 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "ts-node src/seed/seed.ts",
     "dev": "nodemon src/app.ts",
-    "build": "npx tsc --maxNodeModuleJsDepth 0",
-    "start": "npm run build && node --max-old-space-size=2048 dist/app.js"
+    "build": "tsc --maxNodeModuleJsDepth 0",
+    "start": "node --max-old-space-size=4096 dist/app.js"
   },
   "keywords": [],
   "author": "",
