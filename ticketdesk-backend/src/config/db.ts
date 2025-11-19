@@ -13,7 +13,15 @@ const connectDB = async () => {
       console.warn('No MONGODB_URI/MONGO_URI found. Falling back to local MongoDB at mongodb://localhost:27017/fixit');
     }
 
-    await mongoose.connect(mongoUri);
+    await mongoose.connect(mongoUri, {
+      tls: true,
+      tlsAllowInvalidCertificates: false,
+      tlsAllowInvalidHostnames: false,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      minPoolSize: 0,
+      maxPoolSize: 10,
+    });
     console.log('MongoDB connected successfully');
   } catch (err) {
     // Provide clear error and non-zero exit to avoid continuing without DB.
